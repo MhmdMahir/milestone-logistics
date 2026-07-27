@@ -51,7 +51,7 @@ The application will be available at the local machine, then click the  URL show
 * [x] Install Ethereum libraries
 * [ ] Create escrow smart contract
 * [ ] Deploy smart contract
-* &nbsp; [ ] List down the features
+* - [ ] List down the features
 * [ ] Connect MetaMask wallet
 * [ ] Build escrow interface
 * [ ] Implement milestone management
