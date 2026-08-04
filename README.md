@@ -40,6 +40,10 @@ decentralized-escrow-logistics/
 ### Start the development server
 
 ```bash
+npm install -D @vitejs/plugin-react
+```
+
+```bash
 npm run dev
 ```
 
