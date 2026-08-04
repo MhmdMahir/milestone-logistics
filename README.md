@@ -35,13 +35,14 @@ decentralized-escrow-logistics/
 ├── package.json
 └── README.md
 ```
-
+### Initialize project
+```bash
+cd frontend
+npm i
+```
 
 ### Start the development server
 
-```bash
-npm install -D @vitejs/plugin-react
-```
 
 ```bash
 npm run dev
