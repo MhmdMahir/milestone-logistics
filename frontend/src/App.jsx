@@ -1,16 +1,33 @@
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 
 import 'bootstrap/dist/css/bootstrap.min.css'
-import './App.css'
 import Login from './Login.jsx'
 import MainPage from './MainPage.jsx'
+import CreateAgreement from './CreateAgreement.jsx'
+
+function ProtectedRoute({ children }) {
+  const account = localStorage.getItem('account');
+  if (!account) {
+    return <Navigate to="/" replace />;
+  }
+  return children;
+}
+
+function PublicRoute({ children }) {
+  const account = localStorage.getItem('account');
+  if (account) {
+    return <Navigate to="/main" replace />;
+  }
+  return children;
+}
 
 function App() {
   return (
     <BrowserRouter>
       <Routes>
-        <Route path="/" element={<Login />} />
-        <Route path="/main" element={<MainPage />} />
+        <Route path="/" element={<PublicRoute><Login /></PublicRoute>} />
+        <Route path="/main" element={<ProtectedRoute><MainPage /></ProtectedRoute>} />
+        <Route path="/create" element={<ProtectedRoute><CreateAgreement /></ProtectedRoute>} />
       </Routes>
     </BrowserRouter>
   );
