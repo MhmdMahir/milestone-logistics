@@ -1,5 +1,6 @@
 import { ethers } from 'ethers';
 import { useNavigate } from 'react-router-dom';
+import FixedFooter from '../components/FixedFooter';
 
 function Login() {
   const navigate = useNavigate();
@@ -7,7 +8,7 @@ function Login() {
   const connectWallet = async () => {
     if (!window.ethereum) {
       console.error("No crypto wallet found. Please install it.");
-      alert("No crypto wallet found. Please install it.")
+      alert("No crypto wallet found. Please install it.");
       return;
     }
     // Reference 
@@ -19,7 +20,7 @@ function Login() {
     console.log(accountAddress);
     localStorage.setItem('account', accountAddress);
     navigate('/main');
-  }
+  };
 
   return (
     <div className="container d-flex align-items-center justify-content-center min-vh-100">
@@ -29,11 +30,10 @@ function Login() {
         <button className="btn btn-warning w-100 py-2" type="button" onClick={connectWallet}>
           Sign in via MetaMask
         </button>
-
-        <p className="mt-3 text-muted text-center"><a href="https://github.com/MhmdMahir/milestone-logistics">GitHub</a></p>
       </form>
+      <FixedFooter />
     </div>
-  )
+  );
 }
 
-export default Login
+export default Login;

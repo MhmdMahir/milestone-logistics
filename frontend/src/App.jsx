@@ -1,9 +1,8 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 
-import 'bootstrap/dist/css/bootstrap.min.css'
-import Login from './Login.jsx'
-import MainPage from './MainPage.jsx'
-import CreateAgreement from './CreateAgreement.jsx'
+import Login from './pages/Login.jsx';
+import MainPage from './pages/MainPage.jsx';
+import CreateAgreement from './pages/CreateAgreement.jsx';
 
 function ProtectedRoute({ children }) {
   const account = localStorage.getItem('account');
@@ -33,4 +32,4 @@ function App() {
   );
 }
 
-export default App
+export default App;
