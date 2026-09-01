@@ -26,6 +26,12 @@ enum UserRole {
   Carrier
 }
 
+enum TransactionType {
+  AgreementCreation,
+  Payoff,
+  Refund
+}
+
 struct UserProfile {
   address walletAddress;
   string mail;
@@ -35,6 +41,7 @@ struct UserProfile {
 
 struct MilestoneCheckpoint {
   string description;
+  bool isRequested;
   bool isCompleted;
 }
 
@@ -46,8 +53,19 @@ struct Milestone {
   MilestoneCheckpoint[] checkpoints;
 }
 
+// Creation-time input shape. Kept separate from `Milestone` because status
+// and checkpoint completion state don't exist yet when an agreement is created.
+struct MilestoneInput {
+  uint256 deadline;
+  uint256 payoutPercent;
+  string title;
+  string[] checkpointDescriptions;
+}
+
 struct Transaction {
-  uint256 timestamp;
-  string description;
+  address sender;
+  address receiver;
   uint256 amount;
+  TransactionType txType;
+  uint256 timestamp;
 }
