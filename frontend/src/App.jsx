@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import Login from './pages/Login.jsx';
 import MainPage from './pages/MainPage.jsx';
 import CreateAgreement from './pages/CreateAgreement.jsx';
+import CounterDemo from './pages/CounterDemo.jsx';
 
 function ProtectedRoute({ children }) {
   const account = localStorage.getItem('account');
@@ -27,6 +28,7 @@ function App() {
         <Route path="/" element={<PublicRoute><Login /></PublicRoute>} />
         <Route path="/main" element={<ProtectedRoute><MainPage /></ProtectedRoute>} />
         <Route path="/create" element={<ProtectedRoute><CreateAgreement /></ProtectedRoute>} />
+        <Route path="/counter-demo" element={<CounterDemo />} />
       </Routes>
     </BrowserRouter>
   );
