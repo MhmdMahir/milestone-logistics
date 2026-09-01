@@ -1,4 +1,11 @@
+// Tan Zhen Yu
+// Collects the json from hardhat deploy
+// And ABI from hardhat build
+// To pass to ethers js to communicate with Ganache network
+
 import { ethers } from 'ethers';
+
+export const CHAIN_ID = 1337; // Ganache
 
 // Every compiled contract artifact Hardhat produces, and every network's
 // deployed-address map Ignition writes. New .sol files and new deployments

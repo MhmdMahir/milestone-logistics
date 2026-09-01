@@ -1,8 +1,6 @@
 import { useState } from 'react';
 import { ethers } from 'ethers';
-import { getContract } from '../contracts';
-
-const CHAIN_ID = 1337; // Ganache
+import { getContract, CHAIN_ID } from '../contracts';
 
 function CounterDemo() {
   const [value, setValue] = useState(null);
