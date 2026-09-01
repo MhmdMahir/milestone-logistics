@@ -1,8 +1,119 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Accordion, Button, Form, ProgressBar } from 'react-bootstrap';
+import { Accordion, Button, Form } from 'react-bootstrap';
 import Header from '../components/Header';
 import FixedFooter from '../components/FixedFooter';
+
+function MultiThumbSplitter({ milestones, setMilestones, totalPayout }) {
+    const containerRef = useRef(null);
+
+    // Compute cumulative cut points (percentages from 0 to 100)
+    const cuts = [];
+    let accum = 0;
+    for (let i = 0; i < milestones.length - 1; i++) {
+        accum += Number(milestones[i].payoutPercentage) || 0;
+        cuts.push(accum);
+    }
+
+    const handleMouseDown = (index, e) => {
+        e.preventDefault();
+
+        const onMouseMove = (moveEvent) => {
+            if (!containerRef.current) return;
+            const rect = containerRef.current.getBoundingClientRect();
+            const rawPct = Math.round(((moveEvent.clientX - rect.left) / rect.width) * 100);
+
+            const minVal = index > 0 ? cuts[index - 1] + 1 : 1;
+            const maxVal = index < cuts.length - 1 ? cuts[index + 1] - 1 : 99;
+            const clampedPct = Math.max(minVal, Math.min(maxVal, rawPct));
+
+            // Rebuild milestone payout percentages
+            const newCuts = [...cuts];
+            newCuts[index] = clampedPct;
+
+            const newMilestones = milestones.map((m, i) => {
+                const prevCut = i > 0 ? newCuts[i - 1] : 0;
+                const currentCut = i < newCuts.length ? newCuts[i] : 100;
+                return {
+                    ...m,
+                    payoutPercentage: currentCut - prevCut
+                };
+            });
+
+            setMilestones(newMilestones);
+        };
+
+        const onMouseUp = () => {
+            window.removeEventListener('mousemove', onMouseMove);
+            window.removeEventListener('mouseup', onMouseUp);
+        };
+
+        window.addEventListener('mousemove', onMouseMove);
+        window.addEventListener('mouseup', onMouseUp);
+    };
+
+    const bgColors = ['#20262E', '#38598b', '#fa984a', '#68d391', '#ea4998'];
+
+    return (
+        <div className="mb-4">
+            <div className="d-flex justify-content-between align-items-center mb-2">
+                <span className="fw-semibold small text-dark">Payout Distribution</span>
+            </div>
+
+            <div
+                ref={containerRef}
+                className="position-relative w-100 rounded-3 shadow-sm"
+                style={{ height: '38px', backgroundColor: '#e9ecef', userSelect: 'none' }}
+            >
+                {/* Milestone Color Segments */}
+                <div className="d-flex w-100 h-100 rounded-3 overflow-hidden">
+                    {milestones.map((m, idx) => {
+                        const pct = Number(m.payoutPercentage) || 0;
+                        const bg = bgColors[idx % bgColors.length];
+                        const val = ((totalPayout * pct) / 100).toFixed(0);
+                        return (
+                            <div
+                                key={m.id}
+                                className="h-100 d-flex align-items-center justify-content-center text-white small fw-bold px-1 text-truncate"
+                                style={{
+                                    width: `${pct}%`,
+                                    backgroundColor: bg,
+                                    transition: 'width 0.03s ease-out',
+                                    fontSize: '0.75rem'
+                                }}
+                            >
+                                {pct >= 10 && `M${idx + 1}: ${pct}% (RM ${val})`}
+                            </div>
+                        );
+                    })}
+                </div>
+
+                {/* Draggable Handles */}
+                {cuts.map((cutPct, handleIdx) => (
+                    <div
+                        key={handleIdx}
+                        className="position-absolute top-0 bottom-0 d-flex align-items-center justify-content-center"
+                        style={{
+                            left: `${cutPct}%`,
+                            transform: 'translateX(-50%)',
+                            cursor: 'col-resize',
+                            zIndex: 10,
+                            width: '24px'
+                        }}
+                        onMouseDown={(e) => handleMouseDown(handleIdx, e)}
+                    >
+                        <div
+                            className="bg-white border border-2 border-dark shadow-sm rounded-pill d-flex align-items-center justify-content-center"
+                            style={{ width: '14px', height: '28px', fontSize: '10px', color: '#000' }}
+                        >
+                            ║
+                        </div>
+                    </div>
+                ))}
+            </div>
+        </div>
+    );
+}
 
 function CreateAgreement() {
     const navigate = useNavigate();
@@ -58,16 +169,33 @@ function CreateAgreement() {
 
     // Milestone Handlers
     const addMilestone = () => {
-        setMilestones([
-            ...milestones,
+        const newCount = milestones.length + 1;
+        const basePct = Math.floor(100 / newCount);
+        const remainder = 100 - basePct * newCount;
+
+        const updated = [
+            ...milestones.map((m, idx) => ({
+                ...m,
+                payoutPercentage: idx === newCount - 2 ? basePct : m.payoutPercentage
+            })),
             {
                 id: Date.now(),
-                name: `Milestone ${milestones.length + 1}`,
+                name: `Milestone ${newCount}`,
                 deadline: '',
-                payoutPercentage: 0,
+                payoutPercentage: basePct + remainder,
                 checkpoints: [{ id: Date.now() + 1, description: '' }]
             }
-        ]);
+        ];
+
+        // Equalize percentages on add
+        const equalPct = Math.floor(100 / newCount);
+        const rem = 100 - equalPct * newCount;
+        setMilestones(
+            updated.map((m, idx) => ({
+                ...m,
+                payoutPercentage: idx === newCount - 1 ? equalPct + rem : equalPct
+            }))
+        );
     };
 
     const removeMilestone = (id) => {
@@ -75,7 +203,15 @@ function CreateAgreement() {
             alert('Agreement must have at least one milestone.');
             return;
         }
-        setMilestones(milestones.filter((m) => m.id !== id));
+        const filtered = milestones.filter((m) => m.id !== id);
+        const equalPct = Math.floor(100 / filtered.length);
+        const rem = 100 - equalPct * filtered.length;
+        setMilestones(
+            filtered.map((m, idx) => ({
+                ...m,
+                payoutPercentage: idx === filtered.length - 1 ? equalPct + rem : equalPct
+            }))
+        );
     };
 
     const updateMilestone = (id, field, value) => {
@@ -206,10 +342,19 @@ function CreateAgreement() {
                 <section className="mb-5">
                     <div className="d-flex justify-content-between align-items-center border-bottom pb-2 mb-3">
                         <h2 className="h4 fw-bold text-dark mb-0">Milestones</h2>
-                        <Button variant="outline-primary" size="sm" onClick={addMilestone}>
-                            + Add Milestone
-                        </Button>
+                        <div className="d-flex gap-2">
+                            <Button variant="outline-primary" size="sm" onClick={addMilestone}>
+                                + Add Milestone
+                            </Button>
+                        </div>
                     </div>
+
+                    {/* Interactive Multi-Thumb Splitter Bar */}
+                    <MultiThumbSplitter
+                        milestones={milestones}
+                        setMilestones={setMilestones}
+                        totalPayout={totalPayout}
+                    />
 
                     <Accordion defaultActiveKey="0" className="mb-3">
                         {milestones.map((m, index) => {
@@ -237,7 +382,7 @@ function CreateAgreement() {
                                                     required
                                                 />
                                             </div>
-                                            <div className="col-md-3">
+                                            <div className="col-md-6">
                                                 <Form.Label className="fw-semibold small">Deadline</Form.Label>
                                                 <Form.Control
                                                     type="date"
@@ -247,20 +392,6 @@ function CreateAgreement() {
                                                     onChange={(e) => updateMilestone(m.id, 'deadline', e.target.value)}
                                                     required
                                                 />
-                                            </div>
-                                            <div className="col-md-3">
-                                                <Form.Label className="fw-semibold small">Payout Percentage (%)</Form.Label>
-                                                <div className="input-group">
-                                                    <Form.Control
-                                                        type="number"
-                                                        min="1"
-                                                        max="100"
-                                                        value={m.payoutPercentage}
-                                                        onChange={(e) => updateMilestone(m.id, 'payoutPercentage', e.target.value)}
-                                                        required
-                                                    />
-                                                    <span className="input-group-text">%</span>
-                                                </div>
                                             </div>
                                         </div>
 
@@ -323,42 +454,28 @@ function CreateAgreement() {
                 {/* Cost Summary Section Below Form */}
                 <section className="mb-4">
                     <h2 className="h4 fw-bold text-dark border-bottom pb-2 mb-3">Payment Summary</h2>
-                    <div className="card border-secondary-subtle p-4">
-                        <div className="row g-3">
-                            <div className="col-md-4">
-                                <span className="text-muted d-block small">Total Escrow Payout</span>
-                                <span className="fs-5 fw-bold text-dark">RM {totalPayout.toFixed(2)}</span>
-                            </div>
-                            <div className="col-md-4">
-                                <span className="text-muted d-block small">Admin Fee</span>
-                                <span className="fs-5 fw-semibold text-dark">RM {ADMIN_FEE.toFixed(2)}</span>
-                            </div>
-                            <div className="col-md-4">
-                                <span className="text-muted d-block small">Processing Fee</span>
-                                <span className="fs-5 fw-semibold text-dark">RM {PROCESSING_FEE.toFixed(2)}</span>
-                            </div>
-                        </div>
-
-                        <hr />
-
-                        <div className="d-flex justify-content-between align-items-center mb-3">
-                            <span className="fs-5 fw-bold text-dark">Total Payable Amount</span>
-                            <span className="fs-4 fw-bold text-primary">RM {totalPayable.toFixed(2)}</span>
-                        </div>
-
-                        {/* Percentage validation bar */}
-                        <div className="mb-3">
-                            <div className="d-flex justify-content-between small text-muted mb-1">
-                                <span>Milestone Distribution Total</span>
-                                <span className={totalPercentage === 100 ? 'text-success fw-bold' : 'text-danger fw-bold'}>
-                                    {totalPercentage}% {totalPercentage !== 100 && '(Must equal 100%)'}
-                                </span>
-                            </div>
-                            <ProgressBar
-                                now={Math.min(totalPercentage, 100)}
-                                variant={totalPercentage === 100 ? 'success' : 'warning'}
-                                style={{ height: '8px' }}
-                            />
+                    <div className="card p-4">
+                        <div className="table-responsive mb-2">
+                            <table className="table table-borderless align-middle mb-0">
+                                <tbody>
+                                    <tr>
+                                        <td className="ps-0 text-muted">Total Escrow Payout</td>
+                                        <td className="pe-0 text-end fw-semibold text-dark">RM {totalPayout.toFixed(2)}</td>
+                                    </tr>
+                                    <tr>
+                                        <td className="ps-0 text-muted">Admin Fee</td>
+                                        <td className="pe-0 text-end fw-semibold text-dark">RM {ADMIN_FEE.toFixed(2)}</td>
+                                    </tr>
+                                    <tr>
+                                        <td className="ps-0 text-muted">Processing Fee</td>
+                                        <td className="pe-0 text-end fw-semibold text-dark">RM {PROCESSING_FEE.toFixed(2)}</td>
+                                    </tr>
+                                    <tr className="border-top">
+                                        <td className="ps-0 fw-bold fs-5 text-dark pt-3">Total Payable Amount</td>
+                                        <td className="pe-0 text-end fw-bold fs-4 text-primary pt-3">RM {totalPayable.toFixed(2)}</td>
+                                    </tr>
+                                </tbody>
+                            </table>
                         </div>
 
                         {/* Deadline rule warning */}
@@ -372,7 +489,7 @@ function CreateAgreement() {
                             type="submit"
                             variant="warning"
                             size="lg"
-                            className="w-100 fw-bold mt-2 py-2"
+                            className="w-100 fw-bold mt-2 py-2 shadow-sm"
                             disabled={totalPercentage !== 100 || lastDeadlineInvalid}
                         >
                             Create Agreement
