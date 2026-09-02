@@ -3,15 +3,15 @@ pragma solidity ^0.8.34;
 
 import {ContractStatus, Milestone, MilestoneInput, Transaction, UserProfile, UserRole} from "./Types.sol";
 
-// On-chain mirror of the frontend LogisticsClient facade (see
-// frontend/src/contracts/LogisticsClient.d.ts). Only the view functions and
-// checkDeadlines are safe to implement as plain forwarding calls to
-// UserRegistry / AgreementFactory / LogisticsContract - the rest
-// (login, register, createAgreement, terminateAgreement,
-// requestCheckpoint, approveCheckpoint) are msg.sender-gated in those
-// contracts. Forwarding them here would make msg.sender == address(this)
-// on the other side, silently breaking those checks; they need either a
-// meta-transaction / signature scheme or to stay off this contract.
+// Single on-chain entrypoint aggregating UserRegistry / AgreementFactory /
+// LogisticsContract. The mutating calls here (login, register,
+// createAgreement, terminateAgreement, requestCheckpoint, approveCheckpoint)
+// forward on this contract's msg.sender as an explicit argument to those
+// sub-contracts, which trust it because they in turn require msg.sender ==
+// this contract's address (see the onlyClient modifiers on UserRegistry,
+// AgreementFactory and LogisticsContract). That trusted-forwarder wiring is
+// what keeps role checks like onlyShipper/onlyCarrier correct even though
+// every call is routed through a single aggregator.
 interface ILogisticsClient {
   function login() external view returns (UserProfile memory);
 
