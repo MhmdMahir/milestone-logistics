@@ -35,9 +35,14 @@ decentralized-escrow-logistics/
 ├── package.json
 └── README.md
 ```
-
+### Initialize project
+```bash
+cd frontend
+npm i
+```
 
 ### Start the development server
+
 
 ```bash
 npm run dev
