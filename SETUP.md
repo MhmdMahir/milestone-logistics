@@ -159,3 +159,12 @@ console` can't resolve keystore secrets yet. Use a script instead:
 **Reconciliation / "Artifact bytecodes have been changed" on deploy** — a
 previous deploy attempt left a stale record. Rerun with `--reset`:
 `npx hardhat ignition deploy ignition/modules/<Module>.ts --network ganache --reset`.
+
+**Editor shows `Cannot find module '@nomicfoundation/hardhat-ignition/modules'`
+(or similar) even though it's in `package.json`** — usually a corrupted
+`node_modules` (e.g. `npm ls` reports the package as `invalid`/`extraneous`,
+or its folder is missing files). Reinstall clean from the lockfile:
+```bash
+rm -rf node_modules
+npm ci
+```
