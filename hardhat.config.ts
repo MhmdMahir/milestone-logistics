@@ -19,7 +19,6 @@ export default defineConfig({
             enabled: true,
             runs: 200,
           },
-          viaIR: true,
           // getAgreementDetails' return shape (7 values incl. a nested
           // dynamic array) hits "stack too deep" under the legacy codegen
           // once the optimizer is on; viaIR is solc's own suggested fix.
