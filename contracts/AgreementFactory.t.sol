@@ -72,23 +72,6 @@ contract AgreementFactoryTest is Test {
     assertEq(carrierAgreements[0], agreementAddress);
   }
 
-  function test_ListAgreementsReturnsEveryCreatedAgreement() public {
-    vm.prank(client);
-    address first = factory.createAgreement{value: totalPayoutValue}(
-      shipperWallet, carrierWallet, totalPayoutValue, 1 days, _defaultMilestones()
-    );
-
-    vm.prank(client);
-    address second = factory.createAgreement{value: totalPayoutValue}(
-      shipperWallet, carrierWallet, totalPayoutValue, 1 days, _defaultMilestones()
-    );
-
-    address[] memory all = factory.listAgreements();
-    assertEq(all.length, 2);
-    assertEq(all[0], first);
-    assertEq(all[1], second);
-  }
-
   function test_CreateAgreementEmitsAgreementCreatedEvent() public {
     vm.prank(client);
     vm.expectEmit(false, true, true, true, address(factory));

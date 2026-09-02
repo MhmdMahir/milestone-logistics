@@ -67,7 +67,6 @@ export interface LogisticsClient {
     duration: number,
     milestones: MilestoneInput[],
   ): Promise<string>;
-  listAllAgreements(): Promise<string[]>;
   listMyAgreements(): Promise<string[]>;
   getAgreementDetails(agreementAddress: string): Promise<AgreementDetails>;
   terminateAgreement(agreementAddress: string): Promise<void>;

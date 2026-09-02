@@ -25,7 +25,5 @@ interface IAgreementFactory {
     MilestoneInput[] calldata milestones
   ) external payable returns (address agreement);
 
-  function listAgreements() external view returns (address[] memory);
-
   function listAgreementsByUser(address user) external view returns (address[] memory);
 }
