@@ -25,6 +25,8 @@ interface ILogisticsContract {
 
   function status() external view returns (ContractStatus);
 
+  function client() external view returns (address);
+
   function milestoneCount() external view returns (uint256);
 
   function getMilestone(uint256 index) external view returns (Milestone memory);
@@ -38,15 +40,18 @@ interface ILogisticsContract {
 
   function activateContract() external;
 
-  function terminateContract() external;
+  // `caller` is the real end user, forwarded by the trusted LogisticsClient
+  // set at construction time - msg.sender here is always that client
+  // contract, never the shipper/carrier wallet directly.
+  function terminateContract(address caller) external;
 
   // Carrier flags a checkpoint as ready for review.
-  function requestCheckpoint(uint256 milestoneIndex, uint256 checkpointIndex) external;
+  function requestCheckpoint(address caller, uint256 milestoneIndex, uint256 checkpointIndex) external;
 
   // Shipper confirms a requested checkpoint. Once every checkpoint in a
   // milestone is approved, the milestone is marked Completed and its
   // payout share is released from escrow to the carrier.
-  function approveCheckpoint(uint256 milestoneIndex, uint256 checkpointIndex) external;
+  function approveCheckpoint(address caller, uint256 milestoneIndex, uint256 checkpointIndex) external;
 
   // Keeper-style entrypoint: anyone may call this to evaluate whether any
   // in-progress milestone has passed its deadline without completing. On

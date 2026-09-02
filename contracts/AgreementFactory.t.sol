@@ -10,6 +10,7 @@ import {ContractStatus, MilestoneInput, MilestoneStatus} from "./interfaces/Type
 contract AgreementFactoryTest is Test {
   AgreementFactory factory;
 
+  address client = address(0xC11E47);
   address shipperWallet = address(0xA11CE);
   address carrierWallet = address(0xB0B);
 
@@ -17,7 +18,8 @@ contract AgreementFactoryTest is Test {
 
   function setUp() public {
     factory = new AgreementFactory();
-    vm.deal(shipperWallet, 20 ether);
+    factory.setClient(client);
+    vm.deal(client, 20 ether);
   }
 
   function _defaultMilestones() internal view returns (MilestoneInput[] memory milestones) {
@@ -29,27 +31,37 @@ contract AgreementFactoryTest is Test {
   }
 
   function test_RevertWhen_PaymentDoesNotMatchTotalPayoutValue() public {
-    vm.prank(shipperWallet);
+    vm.prank(client);
     vm.expectRevert("AgreementFactory: incorrect payment");
-    factory.createAgreement{value: 1 ether}(carrierWallet, totalPayoutValue, 1 days, _defaultMilestones());
+    factory.createAgreement{value: 1 ether}(shipperWallet, carrierWallet, totalPayoutValue, 1 days, _defaultMilestones());
+  }
+
+  function test_RevertWhen_CreateAgreementCalledByNonClient() public {
+    vm.deal(shipperWallet, 20 ether);
+    vm.prank(shipperWallet);
+    vm.expectRevert("AgreementFactory: caller is not the client");
+    factory.createAgreement{value: totalPayoutValue}(shipperWallet, carrierWallet, totalPayoutValue, 1 days, _defaultMilestones());
   }
 
   function test_CreateAgreementDeploysActivatedAndFundedAgreement() public {
-    vm.prank(shipperWallet);
-    address agreementAddress =
-      factory.createAgreement{value: totalPayoutValue}(carrierWallet, totalPayoutValue, 1 days, _defaultMilestones());
+    vm.prank(client);
+    address agreementAddress = factory.createAgreement{value: totalPayoutValue}(
+      shipperWallet, carrierWallet, totalPayoutValue, 1 days, _defaultMilestones()
+    );
 
     LogisticsContract agreement = LogisticsContract(agreementAddress);
     assertEq(agreement.shipper(), shipperWallet);
     assertEq(agreement.carrier(), carrierWallet);
+    assertEq(agreement.client(), client);
     assertEq(uint256(agreement.status()), uint256(ContractStatus.Activated));
     assertEq(uint256(agreement.getMilestone(0).status), uint256(MilestoneStatus.InProgress));
   }
 
   function test_CreateAgreementRecordsItForBothParties() public {
-    vm.prank(shipperWallet);
-    address agreementAddress =
-      factory.createAgreement{value: totalPayoutValue}(carrierWallet, totalPayoutValue, 1 days, _defaultMilestones());
+    vm.prank(client);
+    address agreementAddress = factory.createAgreement{value: totalPayoutValue}(
+      shipperWallet, carrierWallet, totalPayoutValue, 1 days, _defaultMilestones()
+    );
 
     address[] memory shipperAgreements = factory.listAgreementsByUser(shipperWallet);
     address[] memory carrierAgreements = factory.listAgreementsByUser(carrierWallet);
@@ -61,13 +73,15 @@ contract AgreementFactoryTest is Test {
   }
 
   function test_ListAgreementsReturnsEveryCreatedAgreement() public {
-    vm.prank(shipperWallet);
-    address first =
-      factory.createAgreement{value: totalPayoutValue}(carrierWallet, totalPayoutValue, 1 days, _defaultMilestones());
+    vm.prank(client);
+    address first = factory.createAgreement{value: totalPayoutValue}(
+      shipperWallet, carrierWallet, totalPayoutValue, 1 days, _defaultMilestones()
+    );
 
-    vm.prank(shipperWallet);
-    address second =
-      factory.createAgreement{value: totalPayoutValue}(carrierWallet, totalPayoutValue, 1 days, _defaultMilestones());
+    vm.prank(client);
+    address second = factory.createAgreement{value: totalPayoutValue}(
+      shipperWallet, carrierWallet, totalPayoutValue, 1 days, _defaultMilestones()
+    );
 
     address[] memory all = factory.listAgreements();
     assertEq(all.length, 2);
@@ -76,9 +90,14 @@ contract AgreementFactoryTest is Test {
   }
 
   function test_CreateAgreementEmitsAgreementCreatedEvent() public {
-    vm.prank(shipperWallet);
+    vm.prank(client);
     vm.expectEmit(false, true, true, true, address(factory));
     emit IAgreementFactory.AgreementCreated(address(0), shipperWallet, carrierWallet, totalPayoutValue);
-    factory.createAgreement{value: totalPayoutValue}(carrierWallet, totalPayoutValue, 1 days, _defaultMilestones());
+    factory.createAgreement{value: totalPayoutValue}(shipperWallet, carrierWallet, totalPayoutValue, 1 days, _defaultMilestones());
+  }
+
+  function test_RevertWhen_SetClientCalledTwice() public {
+    vm.expectRevert("AgreementFactory: client already set");
+    factory.setClient(address(0xBAD));
   }
 }

@@ -8,22 +8,34 @@ contract UserRegistry is IUserRegistry {
   mapping(address => UserProfile) private users;
   mapping(address => bool) private registered;
 
-  function register(string calldata mail, string calldata name, UserRole role) external {
-    require(!registered[msg.sender], "UserRegistry: already registered");
+  address public client;
 
-    registered[msg.sender] = true;
-    users[msg.sender] = UserProfile({walletAddress: msg.sender, mail: mail, role: role, name: name});
+  modifier onlyClient() {
+    require(msg.sender == client, "UserRegistry: caller is not the client");
+    _;
+  }
 
-    emit UserRegistered(msg.sender, role);
+  function setClient(address _client) external {
+    require(client == address(0), "UserRegistry: client already set");
+    client = _client;
+  }
+
+  function register(address caller, string calldata mail, string calldata name, UserRole role) external onlyClient {
+    require(!registered[caller], "UserRegistry: already registered");
+
+    registered[caller] = true;
+    users[caller] = UserProfile({walletAddress: caller, mail: mail, role: role, name: name});
+
+    emit UserRegistered(caller, role);
   }
 
   function isRegistered(address wallet) external view returns (bool) {
     return registered[wallet];
   }
 
-  function login() external view returns (UserProfile memory) {
-    require(registered[msg.sender], "UserRegistry: not registered");
-    return users[msg.sender];
+  function login(address caller) external view onlyClient returns (UserProfile memory) {
+    require(registered[caller], "UserRegistry: not registered");
+    return users[caller];
   }
 
   function getUser(address wallet) external view returns (UserProfile memory) {

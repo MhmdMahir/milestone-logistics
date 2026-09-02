@@ -20,6 +20,7 @@ contract LogisticsContract is ILogisticsContract {
   address public shipper;
   address public carrier;
   address public escrow;
+  address public client;
   uint256 public totalPayoutValue;
   uint256 public duration;
   uint256 public payoutRemaining;
@@ -33,13 +34,8 @@ contract LogisticsContract is ILogisticsContract {
     _;
   }
 
-  modifier onlyShipper() {
-    require(msg.sender == shipper, "LogisticsContract: caller is not the shipper");
-    _;
-  }
-
-  modifier onlyCarrier() {
-    require(msg.sender == carrier, "LogisticsContract: caller is not the carrier");
+  modifier onlyClient() {
+    require(msg.sender == client, "LogisticsContract: caller is not the client");
     _;
   }
 
@@ -48,7 +44,8 @@ contract LogisticsContract is ILogisticsContract {
     address _carrier,
     uint256 _totalPayoutValue,
     uint256 _duration,
-    MilestoneInput[] memory _milestones
+    MilestoneInput[] memory _milestones,
+    address _client
   ) {
     require(_milestones.length > 0, "LogisticsContract: at least one milestone required");
 
@@ -78,6 +75,7 @@ contract LogisticsContract is ILogisticsContract {
     duration = _duration;
     payoutRemaining = _totalPayoutValue;
     status = ContractStatus.Pending;
+    client = _client;
   }
 
   function milestoneCount() external view returns (uint256) {
@@ -117,12 +115,14 @@ contract LogisticsContract is ILogisticsContract {
     emit ContractActivated();
   }
 
-  function terminateContract() external onlyShipper {
+  function terminateContract(address caller) external onlyClient {
     require(status == ContractStatus.Activated, "LogisticsContract: not activated");
+    require(caller == shipper, "LogisticsContract: caller is not the shipper");
     _terminate();
   }
 
-  function requestCheckpoint(uint256 milestoneIndex, uint256 checkpointIndex) external onlyCarrier {
+  function requestCheckpoint(address caller, uint256 milestoneIndex, uint256 checkpointIndex) external onlyClient {
+    require(caller == carrier, "LogisticsContract: caller is not the carrier");
     Milestone storage milestone = _inProgressMilestone(milestoneIndex);
     MilestoneCheckpoint storage checkpoint = milestone.checkpoints[checkpointIndex];
     require(!checkpoint.isCompleted, "LogisticsContract: checkpoint already completed");
@@ -131,7 +131,8 @@ contract LogisticsContract is ILogisticsContract {
     emit CheckpointRequested(milestoneIndex, checkpointIndex);
   }
 
-  function approveCheckpoint(uint256 milestoneIndex, uint256 checkpointIndex) external onlyShipper {
+  function approveCheckpoint(address caller, uint256 milestoneIndex, uint256 checkpointIndex) external onlyClient {
+    require(caller == shipper, "LogisticsContract: caller is not the shipper");
     Milestone storage milestone = _inProgressMilestone(milestoneIndex);
     MilestoneCheckpoint storage checkpoint = milestone.checkpoints[checkpointIndex];
     require(checkpoint.isRequested, "LogisticsContract: checkpoint not requested");

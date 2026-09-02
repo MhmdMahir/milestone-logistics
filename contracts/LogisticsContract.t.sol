@@ -11,6 +11,7 @@ contract LogisticsContractTest is Test {
   Escrow escrow;
 
   address factory = address(0xFACADE);
+  address client = address(0xC11E47);
   address shipperWallet = address(0xA11CE);
   address carrierWallet = address(0xB0B);
   address stranger = address(0xBAD);
@@ -28,7 +29,7 @@ contract LogisticsContractTest is Test {
     vm.deal(shipperWallet, 20 ether);
 
     vm.prank(factory);
-    logistics = new LogisticsContract(shipperWallet, carrierWallet, totalPayoutValue, 2 days, _defaultMilestones());
+    logistics = new LogisticsContract(shipperWallet, carrierWallet, totalPayoutValue, 2 days, _defaultMilestones(), client);
 
     escrow = new Escrow(address(logistics));
 
@@ -63,7 +64,7 @@ contract LogisticsContractTest is Test {
 
     vm.prank(factory);
     vm.expectRevert("LogisticsContract: payout percentages must sum to 100");
-    new LogisticsContract(shipperWallet, carrierWallet, totalPayoutValue, 2 days, milestones);
+    new LogisticsContract(shipperWallet, carrierWallet, totalPayoutValue, 2 days, milestones, client);
   }
 
   function test_RevertWhen_SetEscrowCalledByNonFactory() public {
@@ -91,49 +92,57 @@ contract LogisticsContractTest is Test {
     assertEq(uint256(m0.status), uint256(MilestoneStatus.InProgress));
   }
 
+  function test_RevertWhen_RequestCheckpointCalledByNonClient() public {
+    _fundAndActivate();
+
+    vm.prank(carrierWallet);
+    vm.expectRevert("LogisticsContract: caller is not the client");
+    logistics.requestCheckpoint(carrierWallet, 0, 0);
+  }
+
   function test_RevertWhen_RequestCheckpointCalledByNonCarrier() public {
     _fundAndActivate();
 
-    vm.prank(stranger);
+    vm.prank(client);
     vm.expectRevert("LogisticsContract: caller is not the carrier");
-    logistics.requestCheckpoint(0, 0);
+    logistics.requestCheckpoint(stranger, 0, 0);
   }
 
   function test_RevertWhen_ApproveCheckpointCalledByNonShipper() public {
     _fundAndActivate();
 
-    vm.prank(carrierWallet);
-    logistics.requestCheckpoint(0, 0);
+    vm.prank(client);
+    logistics.requestCheckpoint(carrierWallet, 0, 0);
 
-    vm.prank(stranger);
+    vm.prank(client);
     vm.expectRevert("LogisticsContract: caller is not the shipper");
-    logistics.approveCheckpoint(0, 0);
+    logistics.approveCheckpoint(stranger, 0, 0);
   }
 
   function test_RevertWhen_ApproveCheckpointNotYetRequested() public {
     _fundAndActivate();
 
-    vm.prank(shipperWallet);
+    vm.prank(client);
     vm.expectRevert("LogisticsContract: checkpoint not requested");
-    logistics.approveCheckpoint(0, 0);
+    logistics.approveCheckpoint(shipperWallet, 0, 0);
   }
 
   function test_ApprovingAllCheckpointsCompletesMilestoneAndReleasesPayout() public {
     _fundAndActivate();
     uint256 carrierBefore = carrierWallet.balance;
 
-    vm.prank(carrierWallet);
-    logistics.requestCheckpoint(0, 0);
-    vm.prank(shipperWallet);
-    logistics.approveCheckpoint(0, 0);
+    vm.prank(client);
+    logistics.requestCheckpoint(carrierWallet, 0, 0);
+    vm.prank(client);
+    logistics.approveCheckpoint(shipperWallet, 0, 0);
 
     // one checkpoint still outstanding - milestone not complete yet
     assertEq(uint256(logistics.getMilestone(0).status), uint256(MilestoneStatus.InProgress));
 
-    vm.prank(carrierWallet);
-    logistics.requestCheckpoint(0, 1);
-    vm.prank(shipperWallet);
-    logistics.approveCheckpoint(0, 1);
+    vm.prank(client);
+    logistics.requestCheckpoint(carrierWallet, 0, 1);
+    vm.prank(client);
+    logistics.approveCheckpoint(shipperWallet, 0, 1);
 
     assertEq(uint256(logistics.getMilestone(0).status), uint256(MilestoneStatus.Completed));
     assertEq(carrierWallet.balance, carrierBefore + 4 ether);
@@ -144,19 +153,19 @@ contract LogisticsContractTest is Test {
   function test_CompletingFinalMilestoneCompletesContract() public {
     _fundAndActivate();
 
-    vm.prank(carrierWallet);
-    logistics.requestCheckpoint(0, 0);
-    vm.prank(shipperWallet);
-    logistics.approveCheckpoint(0, 0);
-    vm.prank(carrierWallet);
-    logistics.requestCheckpoint(0, 1);
-    vm.prank(shipperWallet);
-    logistics.approveCheckpoint(0, 1);
+    vm.prank(client);
+    logistics.requestCheckpoint(carrierWallet, 0, 0);
+    vm.prank(client);
+    logistics.approveCheckpoint(shipperWallet, 0, 0);
+    vm.prank(client);
+    logistics.requestCheckpoint(carrierWallet, 0, 1);
+    vm.prank(client);
+    logistics.approveCheckpoint(shipperWallet, 0, 1);
 
-    vm.prank(carrierWallet);
-    logistics.requestCheckpoint(1, 0);
-    vm.prank(shipperWallet);
-    logistics.approveCheckpoint(1, 0);
+    vm.prank(client);
+    logistics.requestCheckpoint(carrierWallet, 1, 0);
+    vm.prank(client);
+    logistics.approveCheckpoint(shipperWallet, 1, 0);
 
     assertEq(uint256(logistics.status()), uint256(ContractStatus.Completed));
     assertEq(logistics.payoutRemaining(), 0);
@@ -188,8 +197,8 @@ contract LogisticsContractTest is Test {
     _fundAndActivate();
     uint256 shipperBefore = shipperWallet.balance;
 
-    vm.prank(shipperWallet);
-    logistics.terminateContract();
+    vm.prank(client);
+    logistics.terminateContract(shipperWallet);
 
     assertEq(uint256(logistics.status()), uint256(ContractStatus.Terminated));
     assertEq(shipperWallet.balance, shipperBefore + totalPayoutValue);
@@ -198,8 +207,16 @@ contract LogisticsContractTest is Test {
   function test_RevertWhen_TerminateContractCalledByNonShipper() public {
     _fundAndActivate();
 
-    vm.prank(stranger);
+    vm.prank(client);
     vm.expectRevert("LogisticsContract: caller is not the shipper");
-    logistics.terminateContract();
+    logistics.terminateContract(stranger);
+  }
+
+  function test_RevertWhen_TerminateContractCalledByNonClient() public {
+    _fundAndActivate();
+
+    vm.prank(shipperWallet);
+    vm.expectRevert("LogisticsContract: caller is not the client");
+    logistics.terminateContract(shipperWallet);
   }
 }
