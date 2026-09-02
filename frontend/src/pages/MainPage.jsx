@@ -4,11 +4,15 @@ import FixedFooter from '../components/FixedFooter';
 import FloatAction from '../components/FloatAction';
 
 function MainPage() {
+    const account = localStorage.getItem('account');
+    const profileRaw = account && localStorage.getItem(`profile:${account}`);
+    const profile = profileRaw ? JSON.parse(profileRaw) : null;
+
     return (
         <div className="container pt-5 mt-4 pb-5 text-start">
             <Header />
             <div className="mt-4 mb-4">
-                <h1 className="h2 mb-4">Hello, [name] !</h1>
+                <h1 className="h2 mb-4">Hello, {profile?.name || 'there'} !</h1>
                 <CardList />
             </div>
             <FloatAction />

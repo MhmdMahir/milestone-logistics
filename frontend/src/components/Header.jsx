@@ -4,7 +4,7 @@ function Header() {
     const navigate = useNavigate();
 
     const logOut = () => {
-        localStorage.clear();
+        localStorage.removeItem('account');
         navigate('/');
     };
 
