@@ -23,8 +23,6 @@ contract LogisticsClient is ILogisticsClient {
     MilestoneInput[] calldata milestones
   ) external payable returns (address agreement) {}
 
-  function listAllAgreements() external view returns (address[] memory) {}
-
   function listMyAgreements() external view returns (address[] memory) {}
 
   function getAgreementDetails(address agreement)

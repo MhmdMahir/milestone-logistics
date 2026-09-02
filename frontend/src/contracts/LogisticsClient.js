@@ -15,8 +15,6 @@ export class LogisticsClient {
 
   async createAgreement(carrier, totalPayoutValue, duration, milestones) {}
 
-  async listAllAgreements() {}
-
   async listMyAgreements() {}
 
   async getAgreementDetails(agreementAddress) {}

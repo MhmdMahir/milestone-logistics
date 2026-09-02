@@ -7,7 +7,6 @@ import {LogisticsContract} from "./LogisticsContract.sol";
 import {Escrow} from "./Escrow.sol";
 
 contract AgreementFactory is IAgreementFactory {
-  address[] private agreements;
   mapping(address => address[]) private agreementsByUser;
 
   address public client;
@@ -42,15 +41,10 @@ contract AgreementFactory is IAgreementFactory {
     logistics.activateContract();
 
     agreement = address(logistics);
-    agreements.push(agreement);
     agreementsByUser[caller].push(agreement);
     agreementsByUser[carrier].push(agreement);
 
     emit AgreementCreated(agreement, caller, carrier, totalPayoutValue);
-  }
-
-  function listAgreements() external view returns (address[] memory) {
-    return agreements;
   }
 
   function listAgreementsByUser(address user) external view returns (address[] memory) {
