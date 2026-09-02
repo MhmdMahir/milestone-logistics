@@ -17,7 +17,6 @@ function Login() {
     await provider.send("eth_requestAccounts", []);
     const signer = await provider.getSigner();
     const accountAddress = await signer.getAddress();
-    console.log(accountAddress);
     localStorage.setItem('account', accountAddress);
     navigate('/main');
   };
