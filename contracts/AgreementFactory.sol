@@ -5,11 +5,13 @@ import {IAgreementFactory} from "./interfaces/IAgreementFactory.sol";
 import {MilestoneInput} from "./interfaces/Types.sol";
 import {LogisticsContract} from "./LogisticsContract.sol";
 import {Escrow} from "./Escrow.sol";
+import {PaymentToken} from "./PaymentToken.sol";
 
 contract AgreementFactory is IAgreementFactory {
   mapping(address => address[]) private agreementsByUser;
 
   address public client;
+  PaymentToken public token;
 
   modifier onlyClient() {
     require(msg.sender == client, "AgreementFactory: caller is not the client");
@@ -19,6 +21,7 @@ contract AgreementFactory is IAgreementFactory {
   function setClient(address _client) external {
     require(client == address(0), "AgreementFactory: client already set");
     client = _client;
+    token = new PaymentToken();
   }
 
   function createAgreement(
@@ -34,10 +37,16 @@ contract AgreementFactory is IAgreementFactory {
     // so LogisticsContract can trust it the same way for its own caller checks.
     LogisticsContract logistics =
       new LogisticsContract(caller, carrier, totalPayoutValue, duration, milestones, msg.sender);
-    Escrow escrow = new Escrow(address(logistics));
+    Escrow escrow = new Escrow(address(logistics), address(token));
 
     logistics.setEscrow(address(escrow));
-    escrow.lockFund{value: msg.value}();
+
+    // TODO: In final implementation, transfer tokens from caller to escrow
+    // For now, mint tokens to escrow for testing
+    token.faucet();
+    token.transfer(address(escrow), totalPayoutValue);
+
+    escrow.lockFund(totalPayoutValue);
     logistics.activateContract();
 
     agreement = address(logistics);
