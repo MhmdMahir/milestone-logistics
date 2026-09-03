@@ -5,10 +5,12 @@ import {Test} from "forge-std/Test.sol";
 import {AgreementFactory} from "./AgreementFactory.sol";
 import {IAgreementFactory} from "./interfaces/IAgreementFactory.sol";
 import {LogisticsContract} from "./LogisticsContract.sol";
+import {PaymentToken} from "./PaymentToken.sol";
 import {ContractStatus, MilestoneInput, MilestoneStatus} from "./interfaces/Types.sol";
 
 contract AgreementFactoryTest is Test {
   AgreementFactory factory;
+  PaymentToken token;
 
   address client = address(0xC11E47);
   address shipperWallet = address(0xA11CE);
@@ -17,9 +19,14 @@ contract AgreementFactoryTest is Test {
   uint256 totalPayoutValue = 10 ether;
 
   function setUp() public {
-    factory = new AgreementFactory();
+    token = new PaymentToken();
+    factory = new AgreementFactory(address(token));
     factory.setClient(client);
-    vm.deal(client, 20 ether);
+
+    vm.prank(shipperWallet);
+    token.faucet();
+    vm.prank(shipperWallet);
+    token.approve(address(factory), type(uint256).max);
   }
 
   function _defaultMilestones() internal view returns (MilestoneInput[] memory milestones) {
@@ -30,22 +37,24 @@ contract AgreementFactoryTest is Test {
     milestones[0] = MilestoneInput({deadline: block.timestamp + 1 days, payoutPercent: 100, title: "Only leg", checkpointDescriptions: checkpoints});
   }
 
-  function test_RevertWhen_PaymentDoesNotMatchTotalPayoutValue() public {
+  function test_RevertWhen_PaymentAllowanceIsInsufficient() public {
+    vm.prank(shipperWallet);
+    token.approve(address(factory), 1 ether);
+
     vm.prank(client);
-    vm.expectRevert("AgreementFactory: incorrect payment");
-    factory.createAgreement{value: 1 ether}(shipperWallet, carrierWallet, totalPayoutValue, 1 days, _defaultMilestones());
+    vm.expectRevert();
+    factory.createAgreement(shipperWallet, carrierWallet, totalPayoutValue, 1 days, _defaultMilestones());
   }
 
   function test_RevertWhen_CreateAgreementCalledByNonClient() public {
-    vm.deal(shipperWallet, 20 ether);
     vm.prank(shipperWallet);
     vm.expectRevert("AgreementFactory: caller is not the client");
-    factory.createAgreement{value: totalPayoutValue}(shipperWallet, carrierWallet, totalPayoutValue, 1 days, _defaultMilestones());
+    factory.createAgreement(shipperWallet, carrierWallet, totalPayoutValue, 1 days, _defaultMilestones());
   }
 
   function test_CreateAgreementDeploysActivatedAndFundedAgreement() public {
     vm.prank(client);
-    address agreementAddress = factory.createAgreement{value: totalPayoutValue}(
+    address agreementAddress = factory.createAgreement(
       shipperWallet, carrierWallet, totalPayoutValue, 1 days, _defaultMilestones()
     );
 
@@ -59,7 +68,7 @@ contract AgreementFactoryTest is Test {
 
   function test_CreateAgreementRecordsItForBothParties() public {
     vm.prank(client);
-    address agreementAddress = factory.createAgreement{value: totalPayoutValue}(
+    address agreementAddress = factory.createAgreement(
       shipperWallet, carrierWallet, totalPayoutValue, 1 days, _defaultMilestones()
     );
 
@@ -76,7 +85,20 @@ contract AgreementFactoryTest is Test {
     vm.prank(client);
     vm.expectEmit(false, true, true, true, address(factory));
     emit IAgreementFactory.AgreementCreated(address(0), shipperWallet, carrierWallet, totalPayoutValue);
-    factory.createAgreement{value: totalPayoutValue}(shipperWallet, carrierWallet, totalPayoutValue, 1 days, _defaultMilestones());
+    factory.createAgreement(shipperWallet, carrierWallet, totalPayoutValue, 1 days, _defaultMilestones());
+  }
+
+  function test_CreateAgreementPullsPaymentFromShipperIntoEscrow() public {
+    uint256 shipperBalanceBefore = token.balanceOf(shipperWallet);
+
+    vm.prank(client);
+    address agreementAddress = factory.createAgreement(
+      shipperWallet, carrierWallet, totalPayoutValue, 1 days, _defaultMilestones()
+    );
+
+    LogisticsContract agreement = LogisticsContract(agreementAddress);
+    assertEq(token.balanceOf(shipperWallet), shipperBalanceBefore - totalPayoutValue);
+    assertEq(token.balanceOf(agreement.escrow()), totalPayoutValue);
   }
 
   function test_RevertWhen_SetClientCalledTwice() public {
