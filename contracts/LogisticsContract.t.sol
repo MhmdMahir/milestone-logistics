@@ -139,7 +139,7 @@ contract LogisticsContractTest is Test {
 
   function test_ApprovingAllCheckpointsCompletesMilestoneAndReleasesPayout() public {
     _fundAndActivate();
-    uint256 carrierBefore = carrierWallet.balance;
+    uint256 carrierBefore = token.balanceOf(carrierWallet);
 
     vm.prank(client);
     logistics.requestCheckpoint(carrierWallet, 0, 0);
@@ -155,7 +155,7 @@ contract LogisticsContractTest is Test {
     logistics.approveCheckpoint(shipperWallet, 0, 1);
 
     assertEq(uint256(logistics.getMilestone(0).status), uint256(MilestoneStatus.Completed));
-    assertEq(carrierWallet.balance, carrierBefore + 4 ether);
+    assertEq(token.balanceOf(carrierWallet), carrierBefore + 4 ether);
     assertEq(logistics.payoutRemaining(), 6 ether);
     assertEq(uint256(logistics.getMilestone(1).status), uint256(MilestoneStatus.InProgress));
   }
@@ -192,26 +192,26 @@ contract LogisticsContractTest is Test {
 
   function test_CheckDeadlinesTerminatesAndRefundsShipperWhenOverdue() public {
     _fundAndActivate();
-    uint256 shipperBefore = shipperWallet.balance;
+    uint256 shipperBefore = token.balanceOf(shipperWallet);
 
     vm.warp(milestone0Deadline + 1);
     logistics.checkDeadlines();
 
     assertEq(uint256(logistics.status()), uint256(ContractStatus.Terminated));
     assertEq(uint256(logistics.getMilestone(0).status), uint256(MilestoneStatus.Failed));
-    assertEq(shipperWallet.balance, shipperBefore + totalPayoutValue);
+    assertEq(token.balanceOf(shipperWallet), shipperBefore + totalPayoutValue);
     assertEq(uint256(escrow.status()), uint256(EscrowStatus.Refunded));
   }
 
   function test_TerminateContractCalledByShipperRefunds() public {
     _fundAndActivate();
-    uint256 shipperBefore = shipperWallet.balance;
+    uint256 shipperBefore = token.balanceOf(shipperWallet);
 
     vm.prank(client);
     logistics.terminateContract(shipperWallet);
 
     assertEq(uint256(logistics.status()), uint256(ContractStatus.Terminated));
-    assertEq(shipperWallet.balance, shipperBefore + totalPayoutValue);
+    assertEq(token.balanceOf(shipperWallet), shipperBefore + totalPayoutValue);
   }
 
   function test_RevertWhen_TerminateContractCalledByNonShipper() public {
