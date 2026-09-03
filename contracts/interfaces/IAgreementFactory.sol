@@ -15,15 +15,16 @@ interface IAgreementFactory {
   // `caller` is the real shipper, forwarded by the trusted LogisticsClient -
   // msg.sender here is always the client contract, never the user directly.
   // Deploys a LogisticsContract + its paired Escrow in one transaction and
-  // locks msg.value (must equal totalPayoutValue) into escrow immediately,
-  // so an agreement can never exist unfunded.
+  // pulls totalPayoutValue in payment tokens from `caller` into that escrow
+  // immediately (caller must have approved this factory beforehand), so an
+  // agreement can never exist unfunded.
   function createAgreement(
     address caller,
     address carrier,
     uint256 totalPayoutValue,
     uint256 duration,
     MilestoneInput[] calldata milestones
-  ) external payable returns (address agreement);
+  ) external returns (address agreement);
 
   function listAgreementsByUser(address user) external view returns (address[] memory);
 }
