@@ -1,18 +1,21 @@
 import { useState, useEffect } from 'react';
 import { Dropdown, Form, Button } from 'react-bootstrap';
 
+const today = () => new Date().toISOString().split('T')[0];
+
 function FloatAction() {
   const [simDate, setSimDate] = useState(() => {
     const saved = localStorage.getItem('simDate');
-    return saved || '2026-08-11';
+    return saved && saved >= today() ? saved : today();
   });
 
   useEffect(() => {
     localStorage.setItem('simDate', simDate);
+    window.dispatchEvent(new Event('simDateChanged'));
   }, [simDate]);
 
   const handleDateChange = (e) => {
-    if (e.target.value) {
+    if (e.target.value && e.target.value >= today()) {
       setSimDate(e.target.value);
     }
   };
@@ -65,6 +68,7 @@ function FloatAction() {
             <Form.Control
               type="date"
               size="sm"
+              min={today()}
               value={simDate}
               onChange={handleDateChange}
             />
