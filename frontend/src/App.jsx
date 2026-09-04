@@ -5,6 +5,7 @@ import Register from './pages/Register.jsx';
 import MainPage from './pages/MainPage.jsx';
 import CreateAgreement from './pages/CreateAgreement.jsx';
 import AgreementDetail from './pages/AgreementDetail.jsx';
+import Transactions from './pages/Transactions.jsx';
 import CounterDemo from './pages/CounterDemo.jsx';
 
 function isRegistered(account) {
@@ -50,6 +51,7 @@ function App() {
         <Route path="/main" element={<ProtectedRoute><MainPage /></ProtectedRoute>} />
         <Route path="/create" element={<ProtectedRoute><CreateAgreement /></ProtectedRoute>} />
         <Route path="/agreement/:id" element={<ProtectedRoute><AgreementDetail /></ProtectedRoute>} />
+        <Route path="/transactions" element={<ProtectedRoute><Transactions /></ProtectedRoute>} />
         <Route path="/counter-demo" element={<CounterDemo />} />
       </Routes>
     </BrowserRouter>

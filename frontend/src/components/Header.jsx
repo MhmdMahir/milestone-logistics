@@ -3,6 +3,10 @@ import { useNavigate, NavLink } from 'react-router-dom';
 function Header() {
     const navigate = useNavigate();
 
+    const account = localStorage.getItem('account');
+    const profileRaw = account && localStorage.getItem(`profile:${account}`);
+    const isCarrier = profileRaw && JSON.parse(profileRaw).role === 'Carrier';
+
     const logOut = () => {
         localStorage.removeItem('account');
         navigate('/');
@@ -30,9 +34,11 @@ function Header() {
                             </li>
                         </ul>
                         <div className="btn-group" role="group" aria-label="Button group with nested dropdown">
-                            <NavLink to="/create" className="btn btn-primary d-inline-flex align-items-center">
-                                Create
-                            </NavLink>
+                            {isCarrier && (
+                                <NavLink to="/create" className="btn btn-primary d-inline-flex align-items-center">
+                                    Create
+                                </NavLink>
+                            )}
                             <div className="btn-group" role="group">
                                 <button id="btnGroupDrop1" type="button" className="btn btn-primary dropdown-toggle" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false"></button>
                                 <div className="dropdown-menu dropdown-menu-end" aria-labelledby="btnGroupDrop1">

@@ -4,6 +4,7 @@
 // To pass to ethers js to communicate with Ganache network
 
 import { ethers } from 'ethers';
+import { LogisticsClient } from './LogisticsClient.js';
 
 export const CHAIN_ID = 1337; // Ganache
 
@@ -43,4 +44,15 @@ export function getContract(contractName, chainId, signerOrProvider) {
   const artifact = findArtifact(contractName);
   const address = findAddress(contractName, chainId);
   return new ethers.Contract(address, artifact.abi, signerOrProvider);
+}
+
+// The only way pages should touch contract-shaped data. Today this wraps the
+// localStorage mock in LogisticsClient.js; once contracts/LogisticsClient.sol
+// is deployed, swap this to `getContract('LogisticsClient', CHAIN_ID, signer)`
+// and no page needs to change.
+export async function getLogisticsClient() {
+  const provider = new ethers.BrowserProvider(window.ethereum);
+  await provider.send('eth_requestAccounts', []);
+  const signer = await provider.getSigner();
+  return new LogisticsClient(signer);
 }

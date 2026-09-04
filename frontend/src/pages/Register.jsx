@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import FixedFooter from '../components/FixedFooter';
+import { getLogisticsClient } from '../contracts';
 
 const ROLES = ['Shipper', 'Carrier'];
 
@@ -13,21 +14,33 @@ function Register() {
   const [role, setRole] = useState('');
   const [error, setError] = useState('');
 
-  const handleSubmit = (e) => {
+  const goBack = () => {
+    localStorage.removeItem('account');
+    navigate('/');
+  };
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (!name || !mail || !role) {
       setError('Please fill in your name, email, and role.');
       return;
     }
 
-    const profile = { name, mail, role, walletAddress: account };
-    localStorage.setItem(`profile:${account}`, JSON.stringify(profile));
-    navigate('/main');
+    try {
+      const client = await getLogisticsClient();
+      await client.register(mail, name, role);
+      navigate('/main');
+    } catch (err) {
+      setError(err.message);
+    }
   };
 
   return (
     <div className="container d-flex align-items-center justify-content-center min-vh-100">
       <form className="w-100" style={{ maxWidth: '400px' }} onSubmit={handleSubmit}>
+        <button type="button" className="btn btn-link ps-0 mb-2 text-decoration-none" onClick={goBack}>
+          &larr; Back
+        </button>
         <h1 className="h3 mb-1 fw-normal text-center">Complete your registration</h1>
         <p className="text-muted text-center small mb-4">
           {account}
