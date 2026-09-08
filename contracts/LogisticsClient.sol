@@ -24,8 +24,11 @@ contract LogisticsClient is ILogisticsClient {
 
   function login() external view returns (UserProfile memory profile) {}
 
-  function register(string calldata mail, string calldata name, UserRole role) external {}
-
+//test
+  function register(string calldata mail, string calldata name, UserRole role) external {
+    userRegistry.register(msg.sender, mail, name, role);
+  }
+  
  /* function createAgreement(
     address carrier,
     uint256 totalPayoutValue,
