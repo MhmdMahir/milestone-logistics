@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { Accordion, Button, Form } from 'react-bootstrap';
 import Header from '../components/Header';
 import FixedFooter from '../components/FixedFooter';
+import { ethers } from 'ethers';
+import { LogisticsClient, revertReason } from '../contracts/LogisticsClient';
 
 function MultiThumbSplitter({ milestones, setMilestones, totalPayout }) {
     const containerRef = useRef(null);
@@ -120,7 +122,7 @@ function CreateAgreement() {
 
     const [shipper, setShipper] = useState('');
     const [carrier, setCarrier] = useState('');
-    const [totalEscrowAmount, setTotalEscrowAmount] = useState(1000);
+    const [totalEscrowAmount, setTotalEscrowAmount] = useState(1);
 
     const [milestones, setMilestones] = useState([
         {
@@ -269,22 +271,63 @@ function CreateAgreement() {
         );
     };
 
-    const handleSubmit = (e) => {
+    const [submitting, setSubmitting] = useState(false);
+
+    const handleSubmit = async (e) => {
         e.preventDefault();
-        if (!shipper || !carrier) {
-            alert('Please enter Shipper and Carrier names.');
+
+        if (!ethers.isAddress(carrier)) {
+            alert('Carrier must be a wallet address starting with 0x.');
             return;
         }
         if (totalPercentage !== 100) {
             alert(`Milestone payout percentages must sum to 100% (currently ${totalPercentage}%).`);
             return;
         }
-        if (lastDeadlineInvalid) {
-            alert('The last milestone deadline cannot exceed 90 days from the current date.');
+        if (milestones.some((m) => !m.deadline)) {
+            alert('Every milestone needs a deadline.');
             return;
         }
-        alert('Logistics Escrow Agreement created successfully!');
-        navigate('/main');
+
+        setSubmitting(true);
+        try {
+            const provider = new ethers.BrowserProvider(window.ethereum);
+            await provider.send('eth_requestAccounts', []);
+            const client = new LogisticsClient(await provider.getSigner());
+
+            // Date inputs give midnight, which is already past for today's date.
+            // End-of-day keeps a deadline picked for today valid on-chain.
+            const toTimestamp = (d) => Math.floor(new Date(`${d}T23:59:59`).getTime() / 1000);
+
+            const contractMilestones = milestones.map((m) => ({
+                title: m.name,
+                payoutPercent: Number(m.payoutPercentage),
+                deadline: toTimestamp(m.deadline),
+                checkpointDescriptions: m.checkpoints.map((c) => c.description),
+            }));
+
+            // Escrow value only — the admin and processing fees are display-only,
+            // and the factory rejects any msg.value that isn't an exact match.
+            const totalPayoutValue = ethers.parseEther(String(totalPayout));
+
+            const now = Math.floor(Date.now() / 1000);
+            const lastDeadline = contractMilestones[contractMilestones.length - 1].deadline;
+            const duration = lastDeadline - now;
+
+            const address = await client.createAgreement(
+                carrier,
+                totalPayoutValue,
+                duration,
+                contractMilestones
+            );
+
+            alert(`Agreement created at ${address}`);
+            navigate('/main');
+        } catch (error) {
+            alert(revertReason(error));
+        } finally {
+            setSubmitting(false);
+        }
     };
 
     return (
@@ -297,38 +340,30 @@ function CreateAgreement() {
                 {/* Basic Details Section */}
                 <section className="mb-5">
                     <h2 className="h4 fw-bold text-dark border-bottom pb-2 mb-3">Agreement Details</h2>
-                    <div className="row g-3">
-                        <div className="col-md-6">
+                                        <div className="row g-3">
+                        <div className="col-md-12">
                             <Form.Group>
-                                <Form.Label className="fw-semibold">Shipper Name</Form.Label>
+                                <Form.Label className="fw-semibold">Carrier Wallet Address</Form.Label>
                                 <Form.Control
                                     type="text"
-                                    placeholder="e.g. Maersk Global"
-                                    value={shipper}
-                                    onChange={(e) => setShipper(e.target.value)}
-                                    required
-                                />
-                            </Form.Group>
-                        </div>
-                        <div className="col-md-6">
-                            <Form.Group>
-                                <Form.Label className="fw-semibold">Carrier Name (Account)</Form.Label>
-                                <Form.Control
-                                    type="text"
-                                    placeholder="e.g. DHL Express Cargo"
+                                    placeholder="0x..."
                                     value={carrier}
                                     onChange={(e) => setCarrier(e.target.value)}
                                     required
                                 />
+                                <Form.Text className="text-muted">
+                                    The carrier must already be registered on the platform.
+                                </Form.Text>
                             </Form.Group>
                         </div>
                         <div className="col-md-12">
                             <Form.Group>
-                                <Form.Label className="fw-semibold">Total Escrow Amount (RM)</Form.Label>
+                                <Form.Label className="fw-semibold">Total Escrow Amount (ETH)</Form.Label>
                                 <Form.Control
                                     type="number"
-                                    min="1"
-                                    placeholder="1000"
+                                    min="0"
+                                    step="0.01"
+                                    placeholder="1"
                                     value={totalEscrowAmount}
                                     onChange={(e) => setTotalEscrowAmount(e.target.value)}
                                     required
@@ -490,7 +525,7 @@ function CreateAgreement() {
                             variant="warning"
                             size="lg"
                             className="w-100 fw-bold mt-2 py-2 shadow-sm"
-                            disabled={totalPercentage !== 100 || lastDeadlineInvalid}
+                            disabled={submitting || totalPercentage !== 100 || lastDeadlineInvalid}
                         >
                             Create Agreement
                         </Button>
