@@ -48,4 +48,11 @@ contract LogisticsClient is ILogisticsClient {
   function checkDeadlines(address agreement) external {}
 
   function listTransactions(address agreement) external view returns (Transaction[] memory) {}
+
+  function checkTermination(address agreement) external {
+    //checks for any not completed milestone and performs refund() if found
+    //get all neccesary details for agreement
+    //if true terminateAgreement
+    //else return false / set status false
+  }
 }
