@@ -42,9 +42,20 @@ function MainPage() {
             setName(profile.name);
 
             const addresses = await client.listMyAgreements();
-            await Promise.all(addresses.map((a) => client.checkDeadlines(a)));
+            const events = (await Promise.all(addresses.map((a) => client.checkDeadlines(a)))).filter(Boolean);
             const details = await Promise.all(addresses.map((a) => client.getAgreementDetails(a)));
             setAgreements(details.map((d) => summarize(d, account)));
+
+            if (events.length) {
+                const messages = events.map((e) => {
+                    const title = `Agreement ${e.agreementAddress.slice(0, 8)}`;
+                    const amount = `${ethers.formatEther(e.amount)} ETH`;
+                    if (e.type === 'Terminated') return `${title} terminated — refunded ${amount} to shipper`;
+                    if (e.type === 'Completed') return `${title} completed — final payout of ${amount} released`;
+                    return `${title}: milestone "${e.milestone}" completed — ${amount} released`;
+                });
+                window.dispatchEvent(new CustomEvent('contractStatusChange', { detail: messages }));
+            }
         };
         load();
         window.addEventListener('simDateChanged', load);

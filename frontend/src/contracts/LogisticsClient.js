@@ -154,19 +154,28 @@ export class LogisticsClient {
 
   async checkDeadlines(agreementAddress) {
     const { all, agreement } = this.#find(agreementAddress);
-    if (agreement.status !== 'Activated') return;
+    if (agreement.status !== 'Activated') return null;
     const milestoneIndex = agreement.milestones.findIndex((m) => m.status === 'InProgress');
-    if (milestoneIndex === -1) return;
+    if (milestoneIndex === -1) return null;
     const milestone = agreement.milestones[milestoneIndex];
-    if (nowSeconds() <= milestone.deadline) return;
+    if (nowSeconds() <= milestone.deadline) return null;
 
+    let event;
     if (milestone.checkpoints.every((c) => c.isCompleted)) {
-      this.#completeMilestone(agreement, milestoneIndex);
+      const amount = this.#completeMilestone(agreement, milestoneIndex);
+      event = {
+        agreementAddress,
+        milestone: milestone.title,
+        amount,
+        type: agreement.status === 'Completed' ? 'Completed' : 'MilestoneCompleted',
+      };
     } else {
       milestone.status = 'Failed';
-      this.#refund(agreement);
+      const amount = this.#refund(agreement);
+      event = { agreementAddress, milestone: milestone.title, amount, type: 'Terminated' };
     }
     saveAgreements(all);
+    return event;
   }
 
   #completeMilestone(agreement, milestoneIndex) {
@@ -185,6 +194,7 @@ export class LogisticsClient {
     const next = agreement.milestones[milestoneIndex + 1];
     if (next) next.status = 'InProgress';
     else agreement.status = 'Completed';
+    return payoutShare;
   }
 
   async listTransactions(agreementAddress) {
@@ -203,6 +213,7 @@ export class LogisticsClient {
 
   #refund(agreement) {
     agreement.status = 'Terminated';
+    const amount = BigInt(agreement.payoutRemaining);
     agreement.transactions.push({
       sender: agreement.address,
       receiver: agreement.shipper,
@@ -211,5 +222,6 @@ export class LogisticsClient {
       timestamp: nowSeconds(),
     });
     agreement.payoutRemaining = '0';
+    return amount;
   }
 }

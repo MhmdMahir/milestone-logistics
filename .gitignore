@@ -36,3 +36,4 @@ types/ethers-contracts/
 
 # Git worktrees used for isolated feature work
 .worktrees/
+.omm
