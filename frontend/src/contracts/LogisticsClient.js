@@ -11,6 +11,7 @@ import { ethers } from 'ethers';
 /** @typedef {import('./LogisticsClient.d.ts').LogisticsClient} LogisticsClientContract */
 
 const AGREEMENTS_KEY = 'ml_agreements';
+const REFUND_DEMO_KEY = 'ml_refund_demo';
 
 function loadAgreements() {
   return JSON.parse(localStorage.getItem(AGREEMENTS_KEY) || '[]');
@@ -97,6 +98,48 @@ export class LogisticsClient {
     return agreement.address;
   }
 
+  // Demo-only helper: the connected wallet is both parties so one account can
+  // exercise the existing carrier and shipper methods in the mock.
+  async createRefundDemoAgreement() {
+    const account = await this.#address();
+    const deadline = new Date();
+    deadline.setDate(deadline.getDate() + 1);
+    const deadlineSeconds = Math.floor(deadline.getTime() / 1000);
+    const amount = ethers.parseEther('1').toString();
+    const agreement = {
+      address: `refund-demo-${crypto.randomUUID()}`,
+      shipper: account,
+      carrier: account,
+      totalPayoutValue: amount,
+      payoutRemaining: amount,
+      duration: 86400,
+      status: 'Activated',
+      milestones: [{
+        deadline: deadlineSeconds,
+        payoutPercent: 100,
+        title: 'Refund Demo Delivery',
+        status: 'InProgress',
+        checkpoints: [
+          { description: 'Pickup confirmed', isRequested: false, isCompleted: false },
+          { description: 'Delivered to recipient', isRequested: false, isCompleted: false },
+        ],
+      }],
+      transactions: [{
+        sender: account,
+        receiver: `refund-demo-escrow-${crypto.randomUUID()}`,
+        amount,
+        txType: 'AgreementCreation',
+        timestamp: nowSeconds(),
+      }],
+    };
+    const demoAddress = localStorage.getItem(REFUND_DEMO_KEY);
+    const all = loadAgreements().filter((item) => item.address !== demoAddress);
+    all.push(agreement);
+    saveAgreements(all);
+    localStorage.setItem(REFUND_DEMO_KEY, agreement.address);
+    return agreement.address;
+  }
+
   async listMyAgreements() {
     const address = await this.#address();
     return loadAgreements()
@@ -143,12 +186,11 @@ export class LogisticsClient {
     const checkpoint = this.#inProgressCheckpoint(agreement, milestoneIndex, checkpointIndex);
     if (!checkpoint.isRequested) throw new Error('LogisticsContract: checkpoint not requested');
     checkpoint.isCompleted = true;
-    // Completing every checkpoint does NOT complete the milestone by itself -
-    // payout and the next milestone only unlock once checkDeadlines() runs
-    // after this milestone's deadline has passed (project decision: deadline
-    // gates advancement, not checkpoint completion - diverges from
-    // LogisticsContract.sol's instant-on-completion behavior, flag to the
-    // contract side if this should match).
+    // This mirrors LogisticsContract.sol: the final approval completes the
+    // milestone immediately, releases its payout, and activates the next one.
+    if (agreement.milestones[milestoneIndex].checkpoints.every((item) => item.isCompleted)) {
+      this.#completeMilestone(agreement, milestoneIndex);
+    }
     saveAgreements(all);
   }
 

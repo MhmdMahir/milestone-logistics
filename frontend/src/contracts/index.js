@@ -46,10 +46,9 @@ export function getContract(contractName, chainId, signerOrProvider) {
   return new ethers.Contract(address, artifact.abi, signerOrProvider);
 }
 
-// The only way pages should touch contract-shaped data. Today this wraps the
-// localStorage mock in LogisticsClient.js; once contracts/LogisticsClient.sol
-// is deployed, swap this to `getContract('LogisticsClient', CHAIN_ID, signer)`
-// and no page needs to change.
+// The only way pages should touch contract-shaped data. The refund demo uses
+// the localStorage facade today; a live native-ETH integration can replace
+// this return value with getContract('LogisticsClient', CHAIN_ID, signer).
 export async function getLogisticsClient() {
   const provider = new ethers.BrowserProvider(window.ethereum);
   await provider.send('eth_requestAccounts', []);
