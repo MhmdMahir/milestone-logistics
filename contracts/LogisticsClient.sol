@@ -10,11 +10,22 @@ contract LogisticsClient is ILogisticsClient {
   IUserRegistry public userRegistry;
   IAgreementFactory public agreementFactory;
 
-  constructor(address _userRegistry, address _agreementFactory) {}
+  constructor(address _userRegistry, address _agreementFactory) {
+      userRegistry = IUserRegistry(_userRegistry);
+      agreementFactory = IAgreementFactory(_agreementFactory);
+  }
 
-  function login() external view returns (UserProfile memory profile) {}
+  function login() external view returns (UserProfile memory profile) {
+      return userRegistry.login(msg.sender);
+  }
 
-  function register(string calldata mail, string calldata name, UserRole role) external {}
+    function register(
+      string calldata mail,
+      string calldata name,
+      UserRole role
+    ) external override {
+      userRegistry.register(msg.sender, mail, name, role);
+  }
 
   function createAgreement(
     address carrier,
