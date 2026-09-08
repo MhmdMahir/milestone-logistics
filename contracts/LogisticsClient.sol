@@ -7,9 +7,10 @@ import {IAgreementFactory} from "./interfaces/IAgreementFactory.sol";
 import {ContractStatus, Milestone, MilestoneInput, Transaction, UserProfile, UserRole} from "./interfaces/Types.sol";
 
 contract LogisticsClient is ILogisticsClient {
+  //Bounds keep the LogisticsContract constructor's milestone loop inside the block gas limit. Without them an oversized agreement simply fails to deploy.
   uint256 private constant MAX_MILESTONES = 10;
   uint256 private constant MAX_CHECKPOINTS = 10;
-  uint256 private constant MAX_DURATION = 90 days;
+  uint256 private constant MAX_DURATION = 90 days; //Agreement duration
 
   IUserRegistry public userRegistry;
   IAgreementFactory public agreementFactory;
@@ -94,7 +95,7 @@ contract LogisticsClient is ILogisticsClient {
   function listMyAgreements() external view returns (address[] memory) {
     return agreementFactory.listAgreementsByUser(msg.sender);
   }
-  
+
   function getAgreementDetails(address agreement)
     external
     view
