@@ -10,7 +10,10 @@ contract LogisticsClient is ILogisticsClient {
   IUserRegistry public userRegistry;
   IAgreementFactory public agreementFactory;
 
-  constructor(address _userRegistry, address _agreementFactory) {}
+  constructor(address _userRegistry, address _agreementFactory) {
+    userRegistry = IUserRegistry(_userRegistry);
+    agreementFactory = IAgreementFactory(_agreementFactory);
+  }
 
   function login() external view returns (UserProfile memory profile) {}
 
@@ -21,7 +24,10 @@ contract LogisticsClient is ILogisticsClient {
     uint256 totalPayoutValue,
     uint256 duration,
     MilestoneInput[] calldata milestones
-  ) external payable returns (address agreement) {}
+  ) external payable returns (address agreement) {
+    agreement =
+      agreementFactory.createAgreement{value: msg.value}(msg.sender, carrier, totalPayoutValue, duration, milestones);
+  }
 
   function listMyAgreements() external view returns (address[] memory) {}
 
