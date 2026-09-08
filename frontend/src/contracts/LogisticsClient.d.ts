@@ -44,6 +44,13 @@ export interface Transaction {
   timestamp: number; // unix seconds
 }
 
+export interface DeadlineEvent {
+  agreementAddress: string;
+  milestone: string;
+  amount: bigint; // wei
+  type: "Terminated" | "MilestoneCompleted" | "Completed";
+}
+
 export interface AgreementDetails {
   address: string;
   shipper: string;
@@ -74,7 +81,7 @@ export interface LogisticsClient {
   // MILESTONE / CHECKPOINT
   requestCheckpoint(agreementAddress: string, milestoneIndex: number, checkpointIndex: number): Promise<void>;
   approveCheckpoint(agreementAddress: string, milestoneIndex: number, checkpointIndex: number): Promise<void>;
-  checkDeadlines(agreementAddress: string): Promise<void>;
+  checkDeadlines(agreementAddress: string): Promise<DeadlineEvent | null>;
 
   // TRANSACTIONS
   listTransactions(agreementAddress: string): Promise<Transaction[]>;

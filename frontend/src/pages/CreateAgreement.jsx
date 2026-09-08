@@ -1,8 +1,10 @@
 import { useState, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Navigate } from 'react-router-dom';
+import { ethers } from 'ethers';
 import { Accordion, Button, Form } from 'react-bootstrap';
 import Header from '../components/Header';
 import FixedFooter from '../components/FixedFooter';
+import { getLogisticsClient } from '../contracts';
 
 function MultiThumbSplitter({ milestones, setMilestones, totalPayout }) {
     const containerRef = useRef(null);
@@ -70,7 +72,7 @@ function MultiThumbSplitter({ milestones, setMilestones, totalPayout }) {
                     {milestones.map((m, idx) => {
                         const pct = Number(m.payoutPercentage) || 0;
                         const bg = bgColors[idx % bgColors.length];
-                        const val = ((totalPayout * pct) / 100).toFixed(0);
+                        const val = ((totalPayout * pct) / 100).toFixed(4);
                         return (
                             <div
                                 key={m.id}
@@ -82,7 +84,7 @@ function MultiThumbSplitter({ milestones, setMilestones, totalPayout }) {
                                     fontSize: '0.75rem'
                                 }}
                             >
-                                {pct >= 10 && `M${idx + 1}: ${pct}% (RM ${val})`}
+                                {pct >= 10 && `M${idx + 1}: ${pct}% (${val} ETH)`}
                             </div>
                         );
                     })}
@@ -118,14 +120,17 @@ function MultiThumbSplitter({ milestones, setMilestones, totalPayout }) {
 function CreateAgreement() {
     const navigate = useNavigate();
 
-    const [shipper, setShipper] = useState('');
+    const account = localStorage.getItem('account');
+    const profileRaw = account && localStorage.getItem(`profile:${account}`);
+    const isCarrier = profileRaw && JSON.parse(profileRaw).role === 'Carrier';
+
     const [carrier, setCarrier] = useState('');
-    const [totalEscrowAmount, setTotalEscrowAmount] = useState(1000);
+    const [totalEscrowAmount, setTotalEscrowAmount] = useState(0.1);
 
     const [milestones, setMilestones] = useState([
         {
             id: Date.now(),
-            name: 'Milestone 1: Origin Loading & Customs',
+            name: 'Origin Loading & Customs',
             deadline: '',
             payoutPercentage: 50,
             checkpoints: [
@@ -134,7 +139,7 @@ function CreateAgreement() {
         },
         {
             id: Date.now() + 10,
-            name: 'Milestone 2: Final Destination Delivery',
+            name: 'Final Destination Delivery',
             deadline: '',
             payoutPercentage: 50,
             checkpoints: [
@@ -142,9 +147,6 @@ function CreateAgreement() {
             ]
         }
     ]);
-
-    const ADMIN_FEE = 60;
-    const PROCESSING_FEE = 40;
 
     // Date calculation
     const getSimDate = () => {
@@ -160,7 +162,6 @@ function CreateAgreement() {
 
     // Totals
     const totalPayout = Number(totalEscrowAmount) || 0;
-    const totalPayable = totalPayout + ADMIN_FEE + PROCESSING_FEE;
     const totalPercentage = milestones.reduce((sum, m) => sum + (Number(m.payoutPercentage) || 0), 0);
 
     // Validate last milestone deadline
@@ -269,10 +270,10 @@ function CreateAgreement() {
         );
     };
 
-    const handleSubmit = (e) => {
+    const handleSubmit = async (e) => {
         e.preventDefault();
-        if (!shipper || !carrier) {
-            alert('Please enter Shipper and Carrier names.');
+        if (!carrier) {
+            alert('Please enter the carrier\'s wallet address.');
             return;
         }
         if (totalPercentage !== 100) {
@@ -283,9 +284,27 @@ function CreateAgreement() {
             alert('The last milestone deadline cannot exceed 90 days from the current date.');
             return;
         }
-        alert('Logistics Escrow Agreement created successfully!');
-        navigate('/main');
+
+        const duration = Math.floor((new Date(lastMilestone.deadline).getTime() - simDateObj.getTime()) / 1000);
+        const milestoneInputs = milestones.map((m) => ({
+            deadline: Math.floor(new Date(m.deadline).getTime() / 1000),
+            payoutPercent: Number(m.payoutPercentage),
+            title: m.name,
+            checkpointDescriptions: m.checkpoints.map((c) => c.description),
+        }));
+
+        try {
+            const client = await getLogisticsClient();
+            await client.createAgreement(carrier, ethers.parseEther(String(totalEscrowAmount)), duration, milestoneInputs);
+            navigate('/main', { state: { created: true } });
+        } catch (err) {
+            alert(err.message);
+        }
     };
+
+    if (!isCarrier) {
+        return <Navigate to="/main" replace />;
+    }
 
     return (
         <div className="container pt-5 mt-4 pb-5 text-start" style={{ maxWidth: '840px' }}>
@@ -298,24 +317,12 @@ function CreateAgreement() {
                 <section className="mb-5">
                     <h2 className="h4 fw-bold text-dark border-bottom pb-2 mb-3">Agreement Details</h2>
                     <div className="row g-3">
-                        <div className="col-md-6">
+                        <div className="col-md-12">
                             <Form.Group>
-                                <Form.Label className="fw-semibold">Shipper Name</Form.Label>
+                                <Form.Label className="fw-semibold">Carrier Wallet Address</Form.Label>
                                 <Form.Control
                                     type="text"
-                                    placeholder="e.g. Maersk Global"
-                                    value={shipper}
-                                    onChange={(e) => setShipper(e.target.value)}
-                                    required
-                                />
-                            </Form.Group>
-                        </div>
-                        <div className="col-md-6">
-                            <Form.Group>
-                                <Form.Label className="fw-semibold">Carrier Name (Account)</Form.Label>
-                                <Form.Control
-                                    type="text"
-                                    placeholder="e.g. DHL Express Cargo"
+                                    placeholder="0x..."
                                     value={carrier}
                                     onChange={(e) => setCarrier(e.target.value)}
                                     required
@@ -324,11 +331,12 @@ function CreateAgreement() {
                         </div>
                         <div className="col-md-12">
                             <Form.Group>
-                                <Form.Label className="fw-semibold">Total Escrow Amount (RM)</Form.Label>
+                                <Form.Label className="fw-semibold">Total Escrow Amount (ETH)</Form.Label>
                                 <Form.Control
                                     type="number"
-                                    min="1"
-                                    placeholder="1000"
+                                    min="0.0001"
+                                    step="0.0001"
+                                    placeholder="0.1"
                                     value={totalEscrowAmount}
                                     onChange={(e) => setTotalEscrowAmount(e.target.value)}
                                     required
@@ -358,7 +366,7 @@ function CreateAgreement() {
 
                     <Accordion defaultActiveKey="0" className="mb-3">
                         {milestones.map((m, index) => {
-                            const milestonePayout = ((totalPayout * (Number(m.payoutPercentage) || 0)) / 100).toFixed(2);
+                            const milestonePayout = ((totalPayout * (Number(m.payoutPercentage) || 0)) / 100).toFixed(4);
                             return (
                                 <Accordion.Item key={m.id} eventKey={String(index)} className="mb-2 border rounded shadow-sm">
                                     <Accordion.Header>
@@ -367,7 +375,7 @@ function CreateAgreement() {
                                                 Milestone #{index + 1}: {m.name || 'Untitled'}
                                             </span>
                                             <span className="badge bg-light text-dark border me-2">
-                                                {m.payoutPercentage}% (RM {milestonePayout})
+                                                {m.payoutPercentage}% ({milestonePayout} ETH)
                                             </span>
                                         </div>
                                     </Accordion.Header>
@@ -458,21 +466,9 @@ function CreateAgreement() {
                         <div className="table-responsive mb-2">
                             <table className="table table-borderless align-middle mb-0">
                                 <tbody>
-                                    <tr>
-                                        <td className="ps-0 text-muted">Total Escrow Payout</td>
-                                        <td className="pe-0 text-end fw-semibold text-dark">RM {totalPayout.toFixed(2)}</td>
-                                    </tr>
-                                    <tr>
-                                        <td className="ps-0 text-muted">Admin Fee</td>
-                                        <td className="pe-0 text-end fw-semibold text-dark">RM {ADMIN_FEE.toFixed(2)}</td>
-                                    </tr>
-                                    <tr>
-                                        <td className="ps-0 text-muted">Processing Fee</td>
-                                        <td className="pe-0 text-end fw-semibold text-dark">RM {PROCESSING_FEE.toFixed(2)}</td>
-                                    </tr>
                                     <tr className="border-top">
-                                        <td className="ps-0 fw-bold fs-5 text-dark pt-3">Total Payable Amount</td>
-                                        <td className="pe-0 text-end fw-bold fs-4 text-primary pt-3">RM {totalPayable.toFixed(2)}</td>
+                                        <td className="ps-0 fw-bold fs-5 text-dark pt-3">Total Escrow Amount</td>
+                                        <td className="pe-0 text-end fw-bold fs-4 text-primary pt-3">{totalPayout.toFixed(4)} ETH</td>
                                     </tr>
                                 </tbody>
                             </table>
