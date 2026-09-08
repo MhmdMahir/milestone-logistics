@@ -8,6 +8,12 @@ import FixedFooter from '../components/FixedFooter';
 import FloatAction from '../components/FloatAction';
 import { getLogisticsClient } from '../contracts';
 
+function resolveName(address) {
+    const raw = localStorage.getItem(`profile:${address}`);
+    if (raw) return JSON.parse(raw).name;
+    return `${address.slice(0, 6)}...${address.slice(-4)}`;
+}
+
 function summarize(details, account) {
     const milestone = details.milestones.find((m) => m.status === 'InProgress');
     const isCarrier = account === details.carrier;
@@ -18,14 +24,18 @@ function summarize(details, account) {
         id: details.address,
         title: `Agreement ${details.address.slice(0, 8)}`,
         amount: `${ethers.formatEther(details.totalPayoutValue)} ETH`,
-        carrier: details.carrier,
-        shipper: details.shipper,
+        carrier: resolveName(details.carrier),
+        shipper: resolveName(details.shipper),
         status: details.status,
         requiresAttention: Boolean(attentionCheckpoint),
         tooltipText: attentionCheckpoint
             ? `Action Needed: ${milestone.title} awaits your ${isCarrier ? 'checkpoint request' : 'approval'}`
             : 'No Action Needed: Order operating normally',
     };
+}
+
+function byAttentionFirst(a, b) {
+    return Number(b.requiresAttention) - Number(a.requiresAttention);
 }
 
 function MainPage() {
@@ -76,7 +86,11 @@ function MainPage() {
             </ToastContainer>
             <div className="mt-4 mb-4">
                 <h1 className="h2 mb-4">Hello, {name || 'there'} !</h1>
-                <CardList agreements={agreements.filter((a) => a.status !== 'Completed' && a.status !== 'Terminated')} />
+                <CardList
+                    agreements={agreements
+                        .filter((a) => a.status !== 'Completed' && a.status !== 'Terminated')
+                        .sort(byAttentionFirst)}
+                />
             </div>
 
             {agreements.some((a) => a.status === 'Completed' || a.status === 'Terminated') && (
