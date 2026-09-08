@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import { ethers } from 'ethers';
-import { Toast, ToastContainer } from 'react-bootstrap';
+import { Toast, ToastContainer, Form } from 'react-bootstrap';
 import Header from '../components/Header';
 import CardList from '../components/CardList';
 import FixedFooter from '../components/FixedFooter';
@@ -38,11 +38,21 @@ function byAttentionFirst(a, b) {
     return Number(b.requiresAttention) - Number(a.requiresAttention);
 }
 
+function matchesSearch(agreement, query) {
+    if (!query) return true;
+    const q = query.toLowerCase();
+    return [agreement.title, agreement.carrier, agreement.shipper].some((field) =>
+        field.toLowerCase().includes(q)
+    );
+}
+
 function MainPage() {
     const location = useLocation();
     const [name, setName] = useState('');
     const [agreements, setAgreements] = useState([]);
     const [showCreatedToast, setShowCreatedToast] = useState(Boolean(location.state?.created));
+    const [search, setSearch] = useState('');
+    const [attentionOnly, setAttentionOnly] = useState(false);
 
     useEffect(() => {
         const load = async () => {
@@ -76,6 +86,12 @@ function MainPage() {
         };
     }, []);
 
+    const activeAgreements = agreements
+        .filter((a) => a.status !== 'Completed' && a.status !== 'Terminated')
+        .filter((a) => matchesSearch(a, search))
+        .filter((a) => !attentionOnly || a.requiresAttention)
+        .sort(byAttentionFirst);
+
     return (
         <div className="container pt-5 mt-4 pb-5 text-start">
             <Header />
@@ -86,11 +102,27 @@ function MainPage() {
             </ToastContainer>
             <div className="mt-4 mb-4">
                 <h1 className="h2 mb-4">Hello, {name || 'there'} !</h1>
-                <CardList
-                    agreements={agreements
-                        .filter((a) => a.status !== 'Completed' && a.status !== 'Terminated')
-                        .sort(byAttentionFirst)}
-                />
+                <div className="d-flex gap-3 align-items-center mb-3">
+                    <Form.Control
+                        type="search"
+                        placeholder="Search by name or agreement..."
+                        value={search}
+                        onChange={(e) => setSearch(e.target.value)}
+                        style={{ maxWidth: '320px' }}
+                    />
+                    <Form.Check
+                        type="switch"
+                        id="attention-only-switch"
+                        label="Needs attention only"
+                        checked={attentionOnly}
+                        onChange={(e) => setAttentionOnly(e.target.checked)}
+                    />
+                </div>
+                {activeAgreements.length === 0 && (search || attentionOnly) ? (
+                    <p className="text-muted">No agreements match your filters.</p>
+                ) : (
+                    <CardList agreements={activeAgreements} />
+                )}
             </div>
 
             {agreements.some((a) => a.status === 'Completed' || a.status === 'Terminated') && (
