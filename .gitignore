@@ -33,3 +33,7 @@ ignition/deployments/chain-31337/
 *.sln
 *.sw?
 types/ethers-contracts/
+
+# Git worktrees used for isolated feature work
+.worktrees/
+.omm

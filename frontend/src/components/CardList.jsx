@@ -8,6 +8,7 @@ const defaultAgreements = [
     amount: "1.5 ETH",
     carrier: "DHL Express",
     shipper: "Maersk Global",
+    status: "Activated",
     requiresAttention: true,
     tooltipText: "Action Needed: Milestone 2 awaits your approval"
   },
@@ -17,6 +18,7 @@ const defaultAgreements = [
     amount: "4.2 ETH",
     carrier: "FedEx Supply",
     shipper: "Amazon Logistics",
+    status: "Activated",
     requiresAttention: false,
     tooltipText: "No Action Needed: Order operating normally"
   },
@@ -26,10 +28,18 @@ const defaultAgreements = [
     amount: "0.8 ETH",
     carrier: "UPS Worldwide",
     shipper: "Kuehne + Nagel",
+    status: "Activated",
     requiresAttention: true,
     tooltipText: "Action Needed: Evidence submission requested"
   }
 ];
+
+const STATUS_BADGE = {
+  Pending: 'bg-secondary',
+  Activated: 'bg-primary',
+  Completed: 'bg-success',
+  Terminated: 'bg-danger'
+};
 
 function CardList({ agreements = defaultAgreements, onCardClick }) {
   const navigate = useNavigate();
@@ -79,9 +89,10 @@ function CardList({ agreements = defaultAgreements, onCardClick }) {
             <Card.Body className="d-flex flex-column justify-content-between p-4">
               <div>
                 {/* Title */}
-                <Card.Title className="h5 fw-bold mb-2 pe-3 text-truncate">
+                <Card.Title className="h5 fw-bold mb-1 pe-3 text-truncate">
                   {item.title}
                 </Card.Title>
+                <span className={`badge ${STATUS_BADGE[item.status] || 'bg-secondary'} mb-2`}>{item.status}</span>
 
                 {/* Amount (Black Color) */}
                 <div className="mb-3">
