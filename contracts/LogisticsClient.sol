@@ -5,6 +5,7 @@ import {ILogisticsClient} from "./interfaces/ILogisticsClient.sol";
 import {IUserRegistry} from "./interfaces/IUserRegistry.sol";
 import {IAgreementFactory} from "./interfaces/IAgreementFactory.sol";
 import {ContractStatus, Milestone, MilestoneInput, Transaction, UserProfile, UserRole} from "./interfaces/Types.sol";
+import {ILogisticsContract} from "./interfaces/ILogisticsContract.sol";
 
 contract LogisticsClient is ILogisticsClient {
   IUserRegistry public userRegistry;
@@ -41,11 +42,35 @@ contract LogisticsClient is ILogisticsClient {
 
   function terminateAgreement(address agreement) external {}
 
-  function requestCheckpoint(address agreement, uint256 milestoneIndex, uint256 checkpointIndex) external {}
+    function requestCheckpoint(
+    address agreement,
+    uint256 milestoneIndex,
+    uint256 checkpointIndex
+      ) external {
+        ILogisticsContract(agreement).requestCheckpoint(
+          msg.sender,
+          milestoneIndex,
+          checkpointIndex
+        );
+      }
 
-  function approveCheckpoint(address agreement, uint256 milestoneIndex, uint256 checkpointIndex) external {}
+  function approveCheckpoint(
+    address agreement,
+    uint256 milestoneIndex,
+    uint256 checkpointIndex
+      ) external {
+        ILogisticsContract(agreement).approveCheckpoint(
+          msg.sender,
+          milestoneIndex,
+          checkpointIndex
+        );
+      }
 
-  function checkDeadlines(address agreement) external {}
+  function checkDeadlines(address agreement) external {
+      ILogisticsContract(agreement).checkDeadlines();
+    }
 
-  function listTransactions(address agreement) external view returns (Transaction[] memory) {}
-}
+    function listTransactions(
+      address agreement
+    ) external view returns (Transaction[] memory) {}
+  }

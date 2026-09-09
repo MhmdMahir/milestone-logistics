@@ -127,16 +127,44 @@ export class LogisticsClient {
     saveAgreements(all);
   }
 
-  async requestCheckpoint(agreementAddress, milestoneIndex, checkpointIndex) {
+  async requestCheckpoint(
+    agreementAddress,
+    milestoneIndex,
+    checkpointIndex
+  ) {
+    const tx = await this.contract.requestCheckpoint(
+      agreementAddress,
+      milestoneIndex,
+      checkpointIndex
+    );
+
+    await tx.wait();
+  }
+
+/*  async requestCheckpoint(agreementAddress, milestoneIndex, checkpointIndex) {
     const caller = await this.#address();
     const { all, agreement } = this.#find(agreementAddress);
     if (caller !== agreement.carrier) throw new Error('LogisticsContract: caller is not the carrier');
     const checkpoint = this.#inProgressCheckpoint(agreement, milestoneIndex, checkpointIndex);
     checkpoint.isRequested = true;
     saveAgreements(all);
+  } */
+
+  async approveCheckpoint(
+    agreementAddress,
+    milestoneIndex,
+    checkpointIndex
+  ) {
+    const tx = await this.contract.approveCheckpoint(
+      agreementAddress,
+      milestoneIndex,
+      checkpointIndex
+    );
+
+    await tx.wait();
   }
 
-  async approveCheckpoint(agreementAddress, milestoneIndex, checkpointIndex) {
+/*    async approveCheckpoint(agreementAddress, milestoneIndex, checkpointIndex) {
     const caller = await this.#address();
     const { all, agreement } = this.#find(agreementAddress);
     if (caller !== agreement.shipper) throw new Error('LogisticsContract: caller is not the shipper');
@@ -150,9 +178,19 @@ export class LogisticsClient {
     // LogisticsContract.sol's instant-on-completion behavior, flag to the
     // contract side if this should match).
     saveAgreements(all);
-  }
+  } */
+ 
+    async checkDeadlines(agreementAddress) {
+      const tx = await this.contract.checkDeadlines(
+        agreementAddress
+      );
 
-  async checkDeadlines(agreementAddress) {
+      await tx.wait();
+    }
+    
+
+
+  /*async checkDeadlines(agreementAddress) {
     const { all, agreement } = this.#find(agreementAddress);
     if (agreement.status !== 'Activated') return null;
     const milestoneIndex = agreement.milestones.findIndex((m) => m.status === 'InProgress');
@@ -176,7 +214,7 @@ export class LogisticsClient {
     }
     saveAgreements(all);
     return event;
-  }
+  } */
 
   #completeMilestone(agreement, milestoneIndex) {
     const milestone = agreement.milestones[milestoneIndex];
