@@ -71,22 +71,11 @@ export class LogisticsClient {
   }
 
   async createAgreement(carrier, totalPayoutValue, duration, milestones) {
-    // ERC-20 funding: the shipper must hold and approve enough PaymentToken
-    // for the factory to pull via transferFrom. faucet() is dev/test-only
-    // (see PaymentToken.sol) — top up automatically so the demo never blocks
-    // on a separate "get test tokens" step.
-    const token = getContract('PaymentToken', CHAIN_ID, this.signer);
-    const me = await this.signer.getAddress();
-    const factoryAddress = await this.contract.agreementFactory();
-
-    if ((await token.balanceOf(me)) < totalPayoutValue) {
-      await (await token.faucet()).wait();
-    }
-    if ((await token.allowance(me, factoryAddress)) < totalPayoutValue) {
-      await (await token.approve(factoryAddress, totalPayoutValue)).wait();
-    }
-
-    const tx = await this.contract.createAgreement(carrier, totalPayoutValue, duration, milestones);
+    // Native-ETH funding: the shipper sends totalPayoutValue as msg.value
+    // directly with the call, no separate approve step.
+    const tx = await this.contract.createAgreement(carrier, totalPayoutValue, duration, milestones, {
+      value: totalPayoutValue,
+    });
     await tx.wait();
 
     // createAgreement returns the new address on-chain, but a transaction
