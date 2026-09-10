@@ -13,6 +13,7 @@ const TYPE_BADGE = {
 
 function Transactions() {
   const [rows, setRows] = useState([]);
+  const [names, setNames] = useState({});
 
   useEffect(() => {
     const load = async () => {
@@ -24,7 +25,12 @@ function Transactions() {
           return txs.map((t, i) => ({ ...t, agreementId: address, key: `${address}-${i}` }));
         })
       );
-      setRows(perAgreement.flat().sort((a, b) => b.timestamp - a.timestamp));
+      const flat = perAgreement.flat().sort((a, b) => b.timestamp - a.timestamp);
+      setRows(flat);
+
+      const uniqueWallets = [...new Set(flat.flatMap((t) => [t.sender, t.receiver]))];
+      const resolved = await Promise.all(uniqueWallets.map((w) => client.getUserName(w)));
+      setNames(Object.fromEntries(uniqueWallets.map((w, i) => [w, resolved[i]])));
     };
     load();
     window.ethereum?.on('accountsChanged', load);
@@ -64,8 +70,8 @@ function Transactions() {
                     <td>
                       <span className={`badge ${TYPE_BADGE[t.txType]}`}>{t.txType}</span>
                     </td>
-                    <td className="small">{t.sender.slice(0, 10)}</td>
-                    <td className="small">{t.receiver.slice(0, 10)}</td>
+                    <td className="small">{names[t.sender] ?? t.sender.slice(0, 10)}</td>
+                    <td className="small">{names[t.receiver] ?? t.receiver.slice(0, 10)}</td>
                     <td className="text-end fw-semibold text-dark">{ethers.formatEther(t.amount)} ETH</td>
                   </tr>
                 ))}

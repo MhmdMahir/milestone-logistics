@@ -134,6 +134,15 @@ export class LogisticsClient {
     return this.#deadlineEvent(agreementAddress, receipt);
   }
 
+  // Transactions also involve the per-agreement Escrow contract (funds
+  // in transit), which never registers a UserRegistry profile — an empty
+  // name means "not a user", i.e. the escrow.
+  async getUserName(address) {
+    const registry = getContract('UserRegistry', CHAIN_ID, this.signer);
+    const user = await registry.getUser(address);
+    return user.name || 'Escrow';
+  }
+
   async listTransactions(agreementAddress) {
     const txs = await this.contract.listTransactions(agreementAddress);
     return txs.map((t) => ({

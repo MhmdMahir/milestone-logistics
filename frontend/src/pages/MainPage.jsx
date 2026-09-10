@@ -130,10 +130,12 @@ function MainPage() {
             </div>
 
             {agreements.some((a) => a.status === 'Completed' || a.status === 'Terminated') && (
-                <div className="mb-4">
-                    <h2 className="h4 fw-bold text-dark border-bottom pb-2 mb-3">Archive</h2>
+                <details className="mb-4">
+                    <summary className="h4 fw-bold text-dark border-bottom pb-2 mb-3" style={{ cursor: 'pointer' }}>
+                        Archive
+                    </summary>
                     <CardList agreements={agreements.filter((a) => a.status === 'Completed' || a.status === 'Terminated')} />
-                </div>
+                </details>
             )}
             <FloatAction />
             <FixedFooter />
