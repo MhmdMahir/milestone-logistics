@@ -99,7 +99,7 @@ function MainPage() {
     return (
         <div className="container pt-5 mt-4 pb-5 text-start">
             <Header />
-            <ToastContainer position="top-end" className="p-3" style={{ zIndex: 1050 }}>
+            <ToastContainer position="bottom-end" className="p-3" style={{ zIndex: 1050 }}>
                 <Toast bg="success" show={showCreatedToast} onClose={() => setShowCreatedToast(false)} delay={4000} autohide>
                     <Toast.Body className="text-white fw-semibold">Agreement created successfully!</Toast.Body>
                 </Toast>
