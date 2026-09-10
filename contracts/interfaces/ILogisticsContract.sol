@@ -43,7 +43,7 @@ interface ILogisticsContract {
   // `caller` is the real end user, forwarded by the trusted LogisticsClient
   // set at construction time - msg.sender here is always that client
   // contract, never the shipper/carrier wallet directly.
-  function terminateContract(address caller) external;
+  function terminateAgreement(address caller) external;
 
   // Carrier flags a checkpoint as ready for review.
   function requestCheckpoint(address caller, uint256 milestoneIndex, uint256 checkpointIndex) external;
@@ -53,10 +53,18 @@ interface ILogisticsContract {
   // payout share is released from escrow to the carrier.
   function approveCheckpoint(address caller, uint256 milestoneIndex, uint256 checkpointIndex) external;
 
-  // Keeper-style entrypoint: anyone may call this to evaluate whether any
-  // in-progress milestone has passed its deadline without completing. On
-  // failure it terminates the agreement and triggers an escrow refund to
-  // the shipper. Solidity has no native scheduler, so this must be poked
-  // externally (frontend polling, or a keeper bot / Chainlink Automation).
-  function checkDeadlines() external;
+  // Evaluates whether the in-progress milestone has passed its deadline
+  // without completing; on failure it calls terminateAgreement() itself and
+  // triggers an escrow refund to the shipper. Solidity has no native
+  // scheduler, so this must be poked externally (frontend polling, or a
+  // keeper bot / Chainlink Automation) — routed through the trusted
+  // LogisticsClient like every other mutating call here, same as
+  // terminateAgreement above.
+  //
+  // currentTime is caller-supplied rather than read from block.timestamp so
+  // a course demo can fast-forward past a deadline without waiting real
+  // time. DEMO-ONLY: a real deployment must never accept time from the
+  // caller here, since it lets anyone lie about "now" to trigger an early
+  // refund or dodge a failure.
+  function checkDeadlines(uint256 currentTime) external;
 }

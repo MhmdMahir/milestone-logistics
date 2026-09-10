@@ -5,6 +5,7 @@ import { Accordion, Button, Form } from 'react-bootstrap';
 import Header from '../components/Header';
 import FixedFooter from '../components/FixedFooter';
 import { getLogisticsClient } from '../contracts';
+import { revertReason } from '../contracts/LogisticsClient';
 
 function MultiThumbSplitter({ milestones, setMilestones, totalPayout }) {
     const containerRef = useRef(null);
@@ -289,7 +290,6 @@ function CreateAgreement() {
         // End-of-day keeps a deadline picked for today valid on submission.
         const toTimestamp = (d) => Math.floor(new Date(`${d}T23:59:59`).getTime() / 1000);
 
-        const duration = toTimestamp(lastMilestone.deadline) - Math.floor(now.getTime() / 1000);
         const milestoneInputs = milestones.map((m) => ({
             deadline: toTimestamp(m.deadline),
             payoutPercent: Number(m.payoutPercentage),
@@ -300,10 +300,18 @@ function CreateAgreement() {
         setSubmitting(true);
         try {
             const client = await getLogisticsClient();
+
+            // The contract checks deadlines against its own block.timestamp,
+            // not the browser's clock — those can drift, and the gap only
+            // grows while the form sits open. Basing duration on the chain's
+            // own current time keeps it valid regardless of that drift.
+            const chainNow = (await client.signer.provider.getBlock('latest')).timestamp;
+            const duration = toTimestamp(lastMilestone.deadline) - chainNow;
+
             await client.createAgreement(carrier, ethers.parseEther(String(totalEscrowAmount)), duration, milestoneInputs);
             navigate('/main', { state: { created: true } });
         } catch (err) {
-            alert(err.message);
+            alert(revertReason(err));
         } finally {
             setSubmitting(false);
         }

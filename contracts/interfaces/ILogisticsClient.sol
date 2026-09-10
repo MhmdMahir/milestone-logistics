@@ -45,7 +45,9 @@ interface ILogisticsClient {
 
   function approveCheckpoint(address agreement, uint256 milestoneIndex, uint256 checkpointIndex) external;
 
-  function checkDeadlines(address agreement) external;
+  // currentTime: see ILogisticsContract.checkDeadlines — caller-supplied for
+  // demo purposes only, forwarded as-is.
+  function checkDeadlines(address agreement, uint256 currentTime) external;
 
   function listTransactions(address agreement) external view returns (Transaction[] memory);
 }

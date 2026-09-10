@@ -124,7 +124,7 @@ contract LogisticsClient is ILogisticsClient {
   }
 
   function terminateAgreement(address agreement) external {
-    ILogisticsContract(agreement).terminateContract(msg.sender);
+    ILogisticsContract(agreement).terminateAgreement(msg.sender);
   }
 
   function requestCheckpoint(address agreement, uint256 milestoneIndex, uint256 checkpointIndex) external {
@@ -135,10 +135,15 @@ contract LogisticsClient is ILogisticsClient {
     ILogisticsContract(agreement).approveCheckpoint(msg.sender, milestoneIndex, checkpointIndex);
   }
 
-  // Anyone may poke the agreement's keeper-style deadline check. The agreement
-  // owns failure detection, transaction recording, and the eventual refund.
-  function checkDeadlines(address agreement) external {
-    ILogisticsContract(agreement).checkDeadlines();
+  // Keeper-style deadline check, routed through this trusted client like
+  // every other mutating call. The agreement owns failure detection,
+  // transaction recording, and the eventual refund (via its own
+  // terminateAgreement()). currentTime is caller-supplied so a course demo
+  // can simulate time passing instead of waiting on a real deadline —
+  // DEMO-ONLY, see ILogisticsContract.checkDeadlines for why this must
+  // never ship for real.
+  function checkDeadlines(address agreement, uint256 currentTime) external {
+    ILogisticsContract(agreement).checkDeadlines(currentTime);
   }
 
   function listTransactions(address agreement) external view returns (Transaction[] memory) {

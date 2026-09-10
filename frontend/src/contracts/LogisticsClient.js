@@ -20,6 +20,34 @@ const AGREEMENT_EVENTS = new ethers.Interface([
   'event MilestoneStatusUpdated(uint256 indexed milestoneIndex)',
 ]);
 
+// Demo-only: checkDeadlines() takes "now" from the caller instead of reading
+// block.timestamp, so the FloatAction "Sim Date" control can fast-forward
+// past a deadline without waiting real time. NEVER do this in a production
+// deployment — see the DEMO-ONLY comment on ILogisticsContract.checkDeadlines.
+export function simulatedNow() {
+  const sim = localStorage.getItem('simDate');
+  return Math.floor((sim ? new Date(sim) : new Date()).getTime() / 1000);
+}
+
+/**
+ * Pulls the Solidity require() message out of an ethers/MetaMask error.
+ * Where that string actually lives depends on which layer caught the
+ * revert — a mined transaction, a pre-flight gas estimate, and MetaMask's
+ * own RPC error wrapping each nest it differently — so this checks the
+ * known spots before falling back to whatever text is available.
+ */
+export function revertReason(error, fallback = 'Transaction failed') {
+  return (
+    error?.reason ??
+    error?.data?.data?.reason ??
+    error?.info?.error?.data?.reason ??
+    error?.shortMessage ??
+    error?.data?.message ??
+    error?.message ??
+    fallback
+  );
+}
+
 /** @implements {import('./LogisticsClient.d.ts').LogisticsClient} */
 export class LogisticsClient {
   constructor(signer) {
@@ -99,7 +127,7 @@ export class LogisticsClient {
   }
 
   async checkDeadlines(agreementAddress) {
-    const tx = await this.contract.checkDeadlines(agreementAddress);
+    const tx = await this.contract.checkDeadlines(agreementAddress, simulatedNow());
     const receipt = await tx.wait();
     return this.#deadlineEvent(agreementAddress, receipt);
   }

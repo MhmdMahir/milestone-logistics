@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import FixedFooter from '../components/FixedFooter';
 import { getLogisticsClient } from '../contracts';
+import { revertReason } from '../contracts/LogisticsClient';
 
 const ROLES = ['Shipper', 'Carrier'];
 
@@ -49,12 +50,7 @@ function Register() {
     } catch (err) {
       console.error(err);
 
-      setError(
-        err.reason ||
-        err.shortMessage ||
-        err.message ||
-        'Registration failed.'
-      );
+      setError(revertReason(err, 'Registration failed.'));
 
     } finally {
       setLoading(false);

@@ -2,6 +2,7 @@ import { ethers } from 'ethers';
 import { useNavigate } from 'react-router-dom';
 import FixedFooter from '../components/FixedFooter';
 import { getLogisticsClient } from '../contracts';
+import { revertReason } from '../contracts/LogisticsClient';
 
 function Login() {
   const navigate = useNavigate();
@@ -34,8 +35,7 @@ function Login() {
         // Wallet is registered on the blockchain
         navigate('/main');
       } catch (err) {
-        const reason = err.reason || err.shortMessage || err.message || '';
-        if (reason.includes('not registered')) {
+        if (revertReason(err, '').includes('not registered')) {
           // Wallet exists, but has not registered
           navigate('/register');
         } else {
@@ -46,12 +46,7 @@ function Login() {
     } catch (err) {
       console.error(err);
 
-      alert(
-        err.reason ||
-        err.shortMessage ||
-        err.message ||
-        "Failed to connect wallet."
-      );
+      alert(revertReason(err, 'Failed to connect wallet.'));
     }
   };
 

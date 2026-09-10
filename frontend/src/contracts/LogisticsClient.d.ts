@@ -81,6 +81,9 @@ export interface LogisticsClient {
   // MILESTONE / CHECKPOINT
   requestCheckpoint(agreementAddress: string, milestoneIndex: number, checkpointIndex: number): Promise<void>;
   approveCheckpoint(agreementAddress: string, milestoneIndex: number, checkpointIndex: number): Promise<void>;
+  // DEMO-ONLY: evaluates against FloatAction's "Sim Date" (localStorage
+  // "simDate"), not the real clock, so the deadline-failure path can be
+  // demoed without waiting real time. Never do this in a production client.
   checkDeadlines(agreementAddress: string): Promise<DeadlineEvent | null>;
 
   // TRANSACTIONS

@@ -7,6 +7,7 @@ import CardList from '../components/CardList';
 import FixedFooter from '../components/FixedFooter';
 import FloatAction from '../components/FloatAction';
 import { getLogisticsClient } from '../contracts';
+import { simulatedNow } from '../contracts/LogisticsClient';
 
 function resolveName(address) {
     const raw = localStorage.getItem(`profile:${address}`);
@@ -63,20 +64,22 @@ function MainPage() {
             localStorage.setItem(`profile:${account}`, JSON.stringify(profile));
 
             const addresses = await client.listMyAgreements();
-            const events = (await Promise.all(addresses.map((a) => client.checkDeadlines(a)))).filter(Boolean);
-            const details = await Promise.all(addresses.map((a) => client.getAgreementDetails(a)));
-            setAgreements(details.map((d) => summarize(d, account)));
+            let details = await Promise.all(addresses.map((a) => client.getAgreementDetails(a)));
 
-            if (events.length) {
-                const messages = events.map((e) => {
-                    const title = `Agreement ${e.agreementAddress.slice(0, 8)}`;
-                    const amount = `${ethers.formatEther(e.amount)} ETH`;
-                    if (e.type === 'Terminated') return `${title} terminated — refunded ${amount} to shipper`;
-                    if (e.type === 'Completed') return `${title} completed — final payout of ${amount} released`;
-                    return `${title}: milestone "${e.milestone}" completed — ${amount} released`;
-                });
-                window.dispatchEvent(new CustomEvent('contractStatusChange', { detail: messages }));
+            // Free, local check first — only pay for the real checkDeadlines()
+            // call on the agreements that actually look overdue, instead of
+            // firing it for every agreement on every load.
+            const now = simulatedNow();
+            const overdue = details.filter((d) => {
+                const inProgress = d.milestones.find((m) => m.status === 'InProgress');
+                return d.status === 'Activated' && inProgress && now > inProgress.deadline;
+            });
+            if (overdue.length) {
+                await Promise.all(overdue.map((d) => client.checkDeadlines(d.address)));
+                details = await Promise.all(addresses.map((a) => client.getAgreementDetails(a)));
             }
+
+            setAgreements(details.map((d) => summarize(d, account)));
         };
         load();
         window.addEventListener('simDateChanged', load);

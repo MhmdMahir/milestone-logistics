@@ -5,6 +5,7 @@ import { Badge, Button } from 'react-bootstrap';
 import Header from '../components/Header';
 import FixedFooter from '../components/FixedFooter';
 import { getLogisticsClient } from '../contracts';
+import { revertReason, simulatedNow } from '../contracts/LogisticsClient';
 
 function AgreementDetail() {
   const { id } = useParams();
@@ -16,12 +17,19 @@ function AgreementDetail() {
   const load = useCallback(async () => {
     try {
       const client = await getLogisticsClient();
-      // Keeper-style: nothing polls this in the background, so re-check on
-      // every view (mirrors LogisticsContract.sol's checkDeadlines comment).
-      await client.checkDeadlines(id);
-      setAgreement(await client.getAgreementDetails(id));
+      let details = await client.getAgreementDetails(id);
+
+      // Free, local check first — only pay for the real checkDeadlines() call
+      // when it actually looks overdue, instead of firing it on every view.
+      const inProgress = details.milestones.find((m) => m.status === 'InProgress');
+      if (details.status === 'Activated' && inProgress && simulatedNow() > inProgress.deadline) {
+        await client.checkDeadlines(id);
+        details = await client.getAgreementDetails(id);
+      }
+
+      setAgreement(details);
     } catch (err) {
-      setError(err.message);
+      setError(revertReason(err));
     }
   }, [id]);
 
@@ -37,7 +45,7 @@ function AgreementDetail() {
       await action(client);
       await load();
     } catch (err) {
-      alert(err.message);
+      alert(revertReason(err));
     }
   };
 
@@ -76,11 +84,6 @@ function AgreementDetail() {
           <Badge bg={agreement.status === 'Activated' ? 'success' : 'secondary'} className="mt-1">
             {agreement.status}
           </Badge>
-          {isShipper && agreement.status === 'Activated' && (
-            <Button size="sm" variant="outline-danger" onClick={() => runAction((c) => c.terminateAgreement(id))}>
-              Terminate
-            </Button>
-          )}
         </div>
       </div>
 

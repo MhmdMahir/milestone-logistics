@@ -67,7 +67,7 @@ contract LogisticsClientTest is Test {
     vm.warp(block.timestamp + 1 days + 1);
 
     vm.prank(keeper);
-    client.checkDeadlines(agreementAddress);
+    client.checkDeadlines(agreementAddress, block.timestamp);
 
     assertEq(uint256(agreement.status()), uint256(ContractStatus.Terminated));
     assertEq(uint256(agreement.getMilestone(0).status), uint256(MilestoneStatus.Failed));

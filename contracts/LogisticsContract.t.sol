@@ -185,7 +185,8 @@ contract LogisticsContractTest is Test {
   function test_CheckDeadlinesIsNoopBeforeDeadlinePasses() public {
     _fundAndActivate();
 
-    logistics.checkDeadlines();
+    vm.prank(client);
+    logistics.checkDeadlines(block.timestamp);
 
     assertEq(uint256(logistics.status()), uint256(ContractStatus.Activated));
   }
@@ -195,7 +196,8 @@ contract LogisticsContractTest is Test {
     uint256 shipperBefore = token.balanceOf(shipperWallet);
 
     vm.warp(milestone0Deadline + 1);
-    logistics.checkDeadlines();
+    vm.prank(client);
+    logistics.checkDeadlines(block.timestamp);
 
     assertEq(uint256(logistics.status()), uint256(ContractStatus.Terminated));
     assertEq(uint256(logistics.getMilestone(0).status), uint256(MilestoneStatus.Failed));
@@ -203,30 +205,30 @@ contract LogisticsContractTest is Test {
     assertEq(uint256(escrow.status()), uint256(EscrowStatus.Refunded));
   }
 
-  function test_TerminateContractCalledByShipperRefunds() public {
+  function test_TerminateAgreementCalledByShipperRefunds() public {
     _fundAndActivate();
     uint256 shipperBefore = token.balanceOf(shipperWallet);
 
     vm.prank(client);
-    logistics.terminateContract(shipperWallet);
+    logistics.terminateAgreement(shipperWallet);
 
     assertEq(uint256(logistics.status()), uint256(ContractStatus.Terminated));
     assertEq(token.balanceOf(shipperWallet), shipperBefore + totalPayoutValue);
   }
 
-  function test_RevertWhen_TerminateContractCalledByNonShipper() public {
+  function test_RevertWhen_TerminateAgreementCalledByNonShipper() public {
     _fundAndActivate();
 
     vm.prank(client);
     vm.expectRevert("LogisticsContract: caller is not the shipper");
-    logistics.terminateContract(stranger);
+    logistics.terminateAgreement(stranger);
   }
 
-  function test_RevertWhen_TerminateContractCalledByNonClient() public {
+  function test_RevertWhen_TerminateAgreementCalledByNonClient() public {
     _fundAndActivate();
 
     vm.prank(shipperWallet);
     vm.expectRevert("LogisticsContract: caller is not the client");
-    logistics.terminateContract(shipperWallet);
+    logistics.terminateAgreement(shipperWallet);
   }
 }
