@@ -4,13 +4,13 @@ pragma solidity ^0.8.34;
 import {Test} from "forge-std/Test.sol";
 import {LogisticsContract} from "./LogisticsContract.sol";
 import {Escrow} from "./Escrow.sol";
-import {PaymentToken} from "./PaymentToken.sol";
+import {Token} from "./Token.sol";
 import {ContractStatus, Milestone, MilestoneInput, MilestoneStatus, EscrowStatus} from "./interfaces/Types.sol";
 
 contract LogisticsContractTest is Test {
   LogisticsContract logistics;
   Escrow escrow;
-  PaymentToken token;
+  Token token;
 
   address factory = address(0xFACADE);
   address client = address(0xC11E47);
@@ -28,7 +28,7 @@ contract LogisticsContractTest is Test {
     milestone0Deadline = start + 1 days;
     milestone1Deadline = start + 2 days;
 
-    token = new PaymentToken();
+    token = new Token();
     vm.prank(shipperWallet);
     token.faucet();
 

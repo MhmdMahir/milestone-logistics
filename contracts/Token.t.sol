@@ -2,15 +2,15 @@
 pragma solidity ^0.8.34;
 
 import {Test} from "forge-std/Test.sol";
-import {PaymentToken} from "./PaymentToken.sol";
+import {Token} from "./Token.sol";
 
-contract PaymentTokenTest is Test {
-  PaymentToken token;
+contract TokenTest is Test {
+  Token token;
   address alice = address(0xA11CE);
   address bob = address(0xB0B);
 
   function setUp() public {
-    token = new PaymentToken();
+    token = new Token();
   }
 
   function test_FaucetMintsFixedAmountToCaller() public {

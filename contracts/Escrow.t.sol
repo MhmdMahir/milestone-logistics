@@ -5,7 +5,7 @@ import {Test} from "forge-std/Test.sol";
 import {Escrow} from "./Escrow.sol";
 import {IEscrow} from "./interfaces/IEscrow.sol";
 import {EscrowStatus} from "./interfaces/Types.sol";
-import {PaymentToken} from "./PaymentToken.sol";
+import {Token} from "./Token.sol";
 
 contract MockAgreement {
   address public shipper;
@@ -19,7 +19,7 @@ contract MockAgreement {
 
 contract EscrowTest is Test {
   Escrow escrow;
-  PaymentToken token;
+  Token token;
   MockAgreement agreement;
   address shipperWallet = address(0xA11CE);
   address carrierWallet = address(0xB0B);
@@ -27,7 +27,7 @@ contract EscrowTest is Test {
 
   function setUp() public {
     agreement = new MockAgreement(shipperWallet, carrierWallet);
-    token = new PaymentToken();
+    token = new Token();
     escrow = new Escrow(address(agreement), address(token));
     token.faucet(); // gives address(this) PaymentToken.FAUCET_AMOUNT (1000e18)
   }

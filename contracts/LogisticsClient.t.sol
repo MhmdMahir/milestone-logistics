@@ -4,7 +4,7 @@ pragma solidity ^0.8.34;
 import {Test} from "forge-std/Test.sol";
 import {LogisticsClient} from "./LogisticsClient.sol";
 import {AgreementFactory} from "./AgreementFactory.sol";
-import {PaymentToken} from "./PaymentToken.sol";
+import {Token} from "./Token.sol";
 import {UserRegistry} from "./UserRegistry.sol";
 import {LogisticsContract} from "./LogisticsContract.sol";
 import {ContractStatus, MilestoneInput, MilestoneStatus, TransactionType, UserProfile, UserRole} from "./interfaces/Types.sol";
@@ -12,7 +12,7 @@ import {ContractStatus, MilestoneInput, MilestoneStatus, TransactionType, UserPr
 contract LogisticsClientTest is Test {
   UserRegistry registry;
   AgreementFactory factory;
-  PaymentToken token;
+  Token token;
   LogisticsClient client;
 
   address shipper = address(0xA11CE);
@@ -23,7 +23,7 @@ contract LogisticsClientTest is Test {
 
   function setUp() public {
     registry = new UserRegistry();
-    token = new PaymentToken();
+    token = new Token();
     factory = new AgreementFactory(address(token));
     client = new LogisticsClient(address(registry), address(factory));
     registry.setClient(address(client));

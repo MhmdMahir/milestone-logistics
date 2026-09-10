@@ -5,12 +5,12 @@ import {Test} from "forge-std/Test.sol";
 import {AgreementFactory} from "./AgreementFactory.sol";
 import {IAgreementFactory} from "./interfaces/IAgreementFactory.sol";
 import {LogisticsContract} from "./LogisticsContract.sol";
-import {PaymentToken} from "./PaymentToken.sol";
+import {Token} from "./Token.sol";
 import {ContractStatus, MilestoneInput, MilestoneStatus} from "./interfaces/Types.sol";
 
 contract AgreementFactoryTest is Test {
   AgreementFactory factory;
-  PaymentToken token;
+  Token token;
 
   address client = address(0xC11E47);
   address shipperWallet = address(0xA11CE);
@@ -19,7 +19,7 @@ contract AgreementFactoryTest is Test {
   uint256 totalPayoutValue = 10 ether;
 
   function setUp() public {
-    token = new PaymentToken();
+    token = new Token();
     factory = new AgreementFactory(address(token));
     factory.setClient(client);
 
