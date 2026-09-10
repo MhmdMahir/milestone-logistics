@@ -123,6 +123,45 @@ function AgreementDetail() {
       {/* Milestones */}
       <section className="mb-5">
         <h2 className="h4 fw-bold text-dark border-bottom pb-2 mb-3">Milestones</h2>
+
+        {/* Progress stepper */}
+        <div className="d-flex align-items-center bg-white rounded-pill shadow-sm px-4 py-3 mb-4">
+          {agreement.milestones.map((m, index) => {
+            const isCompleted = m.status === 'Completed';
+            const isCurrent = m.status === 'InProgress';
+            const isFailed = m.status === 'Failed';
+            return (
+              <div key={index} className="d-flex align-items-center flex-grow-1">
+                <div className="d-flex flex-column align-items-center" style={{ minWidth: '90px' }}>
+                  <div
+                    className={`d-flex align-items-center justify-content-center rounded-circle fw-bold ${
+                      isCompleted
+                        ? 'bg-success text-white'
+                        : isFailed
+                        ? 'bg-danger text-white'
+                        : isCurrent
+                        ? 'bg-primary text-white'
+                        : 'bg-light text-muted border'
+                    }`}
+                    style={{ width: '28px', height: '28px', fontSize: '0.8rem' }}
+                  >
+                    {isCompleted ? '✓' : isFailed ? '✕' : index + 1}
+                  </div>
+                  <span className={`small mt-1 text-center ${isCurrent ? 'fw-semibold text-dark' : 'text-muted'}`}>
+                    {m.title}
+                  </span>
+                </div>
+                {index < agreement.milestones.length - 1 && (
+                  <div
+                    className={`flex-grow-1 ${isCompleted ? 'bg-success' : isFailed ? 'bg-danger' : 'bg-light'}`}
+                    style={{ height: '2px' }}
+                  />
+                )}
+              </div>
+            );
+          })}
+        </div>
+
         {agreement.milestones.map((m, index) => {
           const milestonePayout = ((totalPayout * Number(m.payoutPercent)) / 100).toFixed(4);
           return (
