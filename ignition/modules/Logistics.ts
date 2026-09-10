@@ -1,9 +1,10 @@
 import { buildModule } from "@nomicfoundation/hardhat-ignition/modules";
 
 export default buildModule("LogisticsModule", (m) => {
-  const paymentToken = m.contract("PaymentToken");
   const userRegistry = m.contract("UserRegistry");
-  const agreementFactory = m.contract("AgreementFactory", [paymentToken]);
+  // Native ETH deployment path. The ERC-20 AgreementFactory and PaymentToken
+  // contracts remain available through their own deployment configuration.
+  const agreementFactory = m.contract("NativeAgreementFactory");
 
   const logisticsClient = m.contract("LogisticsClient", [userRegistry, agreementFactory]);
 
@@ -12,5 +13,5 @@ export default buildModule("LogisticsModule", (m) => {
   m.call(userRegistry, "setClient", [logisticsClient]);
   m.call(agreementFactory, "setClient", [logisticsClient]);
 
-  return { paymentToken, userRegistry, agreementFactory, logisticsClient };
+  return { userRegistry, agreementFactory, logisticsClient };
 });

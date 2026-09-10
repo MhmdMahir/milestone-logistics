@@ -11,6 +11,7 @@ import { ethers } from 'ethers';
 /** @typedef {import('./LogisticsClient.d.ts').LogisticsClient} LogisticsClientContract */
 
 const AGREEMENTS_KEY = 'ml_agreements';
+const REFUND_DEMO_KEY = 'ml_refund_demo';
 
 function loadAgreements() {
   return JSON.parse(localStorage.getItem(AGREEMENTS_KEY) || '[]');
@@ -94,6 +95,48 @@ export class LogisticsClient {
     const all = loadAgreements();
     all.push(agreement);
     saveAgreements(all);
+    return agreement.address;
+  }
+
+  // Demo-only helper: the connected wallet is both parties so one account can
+  // exercise the existing carrier and shipper methods in the mock.
+  async createRefundDemoAgreement() {
+    const account = await this.#address();
+    const deadline = new Date();
+    deadline.setDate(deadline.getDate() + 1);
+    const deadlineSeconds = Math.floor(deadline.getTime() / 1000);
+    const amount = ethers.parseEther('1').toString();
+    const agreement = {
+      address: `refund-demo-${crypto.randomUUID()}`,
+      shipper: account,
+      carrier: account,
+      totalPayoutValue: amount,
+      payoutRemaining: amount,
+      duration: 86400,
+      status: 'Activated',
+      milestones: [{
+        deadline: deadlineSeconds,
+        payoutPercent: 100,
+        title: 'Refund Demo Delivery',
+        status: 'InProgress',
+        checkpoints: [
+          { description: 'Pickup confirmed', isRequested: false, isCompleted: false },
+          { description: 'Delivered to recipient', isRequested: false, isCompleted: false },
+        ],
+      }],
+      transactions: [{
+        sender: account,
+        receiver: `refund-demo-escrow-${crypto.randomUUID()}`,
+        amount,
+        txType: 'AgreementCreation',
+        timestamp: nowSeconds(),
+      }],
+    };
+    const demoAddress = localStorage.getItem(REFUND_DEMO_KEY);
+    const all = loadAgreements().filter((item) => item.address !== demoAddress);
+    all.push(agreement);
+    saveAgreements(all);
+    localStorage.setItem(REFUND_DEMO_KEY, agreement.address);
     return agreement.address;
   }
 

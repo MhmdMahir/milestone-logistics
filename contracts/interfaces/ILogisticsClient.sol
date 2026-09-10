@@ -22,7 +22,7 @@ interface ILogisticsClient {
     uint256 totalPayoutValue,
     uint256 duration,
     MilestoneInput[] calldata milestones
-  ) external returns (address agreement);
+  ) external payable returns (address agreement);
 
   function listMyAgreements() external view returns (address[] memory);
 
