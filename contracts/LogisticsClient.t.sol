@@ -3,14 +3,16 @@ pragma solidity ^0.8.34;
 
 import {Test} from "forge-std/Test.sol";
 import {LogisticsClient} from "./LogisticsClient.sol";
-import {NativeAgreementFactory} from "./NativeAgreementFactory.sol";
+import {AgreementFactory} from "./AgreementFactory.sol";
+import {PaymentToken} from "./PaymentToken.sol";
 import {UserRegistry} from "./UserRegistry.sol";
 import {LogisticsContract} from "./LogisticsContract.sol";
 import {ContractStatus, MilestoneInput, MilestoneStatus, TransactionType, UserProfile, UserRole} from "./interfaces/Types.sol";
 
 contract LogisticsClientTest is Test {
   UserRegistry registry;
-  NativeAgreementFactory factory;
+  AgreementFactory factory;
+  PaymentToken token;
   LogisticsClient client;
 
   address shipper = address(0xA11CE);
@@ -21,11 +23,14 @@ contract LogisticsClientTest is Test {
 
   function setUp() public {
     registry = new UserRegistry();
-    factory = new NativeAgreementFactory();
+    token = new PaymentToken();
+    factory = new AgreementFactory(address(token));
     client = new LogisticsClient(address(registry), address(factory));
     registry.setClient(address(client));
     factory.setClient(address(client));
-    vm.deal(shipper, 2 ether);
+
+    vm.prank(shipper);
+    token.faucet();
   }
 
   function _milestones() internal view returns (MilestoneInput[] memory milestones) {
@@ -49,7 +54,7 @@ contract LogisticsClientTest is Test {
     assertEq(client.login().walletAddress, shipper);
   }
 
-  function test_CreatesNativeAgreementAndRefundsAfterIncompleteDeadline() public {
+  function test_CreatesAgreementAndRefundsAfterIncompleteDeadline() public {
     vm.prank(shipper);
     client.register("shipper@example.com", "Alice", UserRole.Shipper);
 
@@ -57,13 +62,16 @@ contract LogisticsClientTest is Test {
     client.register("carrier@example.com", "Bob", UserRole.Carrier);
 
     vm.prank(shipper);
-    address agreementAddress = client.createAgreement{value: totalPayout}(carrier, totalPayout, 1 days, _milestones());
+    token.approve(address(factory), totalPayout);
+
+    vm.prank(shipper);
+    address agreementAddress = client.createAgreement(carrier, totalPayout, 1 days, _milestones());
     LogisticsContract agreement = LogisticsContract(agreementAddress);
 
     assertEq(uint256(agreement.status()), uint256(ContractStatus.Activated));
     assertEq(agreement.payoutRemaining(), totalPayout);
 
-    uint256 shipperBefore = shipper.balance;
+    uint256 shipperBefore = token.balanceOf(shipper);
     vm.warp(block.timestamp + 1 days + 1);
 
     vm.prank(keeper);
@@ -72,7 +80,7 @@ contract LogisticsClientTest is Test {
     assertEq(uint256(agreement.status()), uint256(ContractStatus.Terminated));
     assertEq(uint256(agreement.getMilestone(0).status), uint256(MilestoneStatus.Failed));
     assertEq(agreement.payoutRemaining(), totalPayout);
-    assertEq(shipper.balance, shipperBefore + totalPayout);
+    assertEq(token.balanceOf(shipper), shipperBefore + totalPayout);
     assertEq(uint256(agreement.getTransactions()[1].txType), uint256(TransactionType.Refund));
   }
 

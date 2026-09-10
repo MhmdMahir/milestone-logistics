@@ -3,14 +3,15 @@ pragma solidity ^0.8.34;
 
 import {ILogisticsClient} from "./interfaces/ILogisticsClient.sol";
 import {IUserRegistry} from "./interfaces/IUserRegistry.sol";
-import {INativeAgreementFactory} from "./interfaces/INativeAgreementFactory.sol";
+import {IAgreementFactory} from "./interfaces/IAgreementFactory.sol";
 import {ILogisticsContract} from "./interfaces/ILogisticsContract.sol";
 import {ContractStatus, Milestone, MilestoneInput, Transaction, UserProfile, UserRole} from "./interfaces/Types.sol";
 
 // User-facing trusted facade. It forwards the original wallet address to the
 // underlying contracts because those contracts trust this facade as client.
-// This facade uses the additive native-ETH factory; the original ERC-20
-// AgreementFactory and Escrow contracts remain available and unchanged.
+// Funds agreements with the ERC-20 PaymentToken; the shipper must approve
+// this facade's AgreementFactory for totalPayoutValue before calling
+// createAgreement.
 contract LogisticsClient is ILogisticsClient {
   //Bounds keep the LogisticsContract constructor's milestone loop inside the block gas limit. Without them an oversized agreement simply fails to deploy.
   uint256 private constant MAX_MILESTONES = 10;
@@ -18,13 +19,13 @@ contract LogisticsClient is ILogisticsClient {
   uint256 private constant MAX_DURATION = 90 days; //Agreement duration
 
   IUserRegistry public userRegistry;
-  INativeAgreementFactory public agreementFactory;
+  IAgreementFactory public agreementFactory;
 
   constructor(address _userRegistry, address _agreementFactory) {
     require(_userRegistry != address(0), "LogisticsClient: registry is the zero address");
     require(_agreementFactory != address(0), "LogisticsClient: factory is the zero address");
     userRegistry = IUserRegistry(_userRegistry);
-    agreementFactory = INativeAgreementFactory(_agreementFactory);
+    agreementFactory = IAgreementFactory(_agreementFactory);
   }
 
   function login() external view returns (UserProfile memory profile) {
@@ -40,7 +41,7 @@ contract LogisticsClient is ILogisticsClient {
     uint256 totalPayoutValue,
     uint256 duration,
     MilestoneInput[] calldata milestones
-  ) external payable returns (address agreement) {
+  ) external returns (address agreement) {
     require(carrier != address(0), "LogisticsClient: carrier is the zero address");
     require(carrier != msg.sender, "LogisticsClient: shipper and carrier must differ");
     require(totalPayoutValue > 0, "LogisticsClient: payout value must be greater than zero");
@@ -53,9 +54,9 @@ contract LogisticsClient is ILogisticsClient {
 
     _validateSchedule(duration, milestones);
 
-    agreement = agreementFactory.createAgreement{value: msg.value}(
-      msg.sender, carrier, totalPayoutValue, duration, milestones
-    );
+    // Requires msg.sender to have approved this factory for totalPayoutValue
+    // beforehand (ERC-20 has no "send with call" equivalent to native value).
+    agreement = agreementFactory.createAgreement(msg.sender, carrier, totalPayoutValue, duration, milestones);
   }
 
   function _validateSchedule(uint256 duration, MilestoneInput[] calldata milestones) private view {
