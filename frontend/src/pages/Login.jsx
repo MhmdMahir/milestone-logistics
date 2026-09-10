@@ -25,12 +25,17 @@ function Login() {
       const client = await getLogisticsClient();
 
       try {
-        await client.login();
+        const profile = await client.login();
+
+        // Cached locally so Header/CreateAgreement can gate on role without
+        // an extra chain read on every render.
+        localStorage.setItem(`profile:${accountAddress}`, JSON.stringify(profile));
 
         // Wallet is registered on the blockchain
         navigate('/main');
       } catch (err) {
-        if (err.message?.includes('not registered')) {
+        const reason = err.reason || err.shortMessage || err.message || '';
+        if (reason.includes('not registered')) {
           // Wallet exists, but has not registered
           navigate('/register');
         } else {

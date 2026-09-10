@@ -39,6 +39,10 @@ function Register() {
       // MetaMask will ask the user to confirm the transaction.
       await client.register(mail, name, role);
 
+      // Cached locally so Header/CreateAgreement can gate on role without an
+      // extra chain read on every render.
+      localStorage.setItem(`profile:${account}`, JSON.stringify({ walletAddress: account, mail, name, role }));
+
       // Registration succeeded and transaction was mined.
       navigate('/main');
 

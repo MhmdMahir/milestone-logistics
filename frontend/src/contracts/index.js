@@ -74,10 +74,7 @@ export function getContract(
   );
 }
 
-// The only way pages should touch contract-shaped data. Today this wraps the
-// localStorage mock in LogisticsClient.js; once contracts/LogisticsClient.sol
-// is deployed, swap this to `getContract('LogisticsClient', CHAIN_ID, signer)`
-// and no page needs to change.
+// The only way pages should touch contract-shaped data.
 export async function getLogisticsClient() {
   const provider = new ethers.BrowserProvider(window.ethereum);
   await provider.send('eth_requestAccounts', []);

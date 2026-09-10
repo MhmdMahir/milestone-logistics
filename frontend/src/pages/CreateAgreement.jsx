@@ -122,7 +122,7 @@ function CreateAgreement() {
 
     const account = localStorage.getItem('account');
     const profileRaw = account && localStorage.getItem(`profile:${account}`);
-    const isCarrier = profileRaw && JSON.parse(profileRaw).role === 'Carrier';
+    const isShipper = profileRaw && JSON.parse(profileRaw).role === 'Shipper';
 
     const [carrier, setCarrier] = useState('');
     const [totalEscrowAmount, setTotalEscrowAmount] = useState(0.1);
@@ -148,17 +148,14 @@ function CreateAgreement() {
         }
     ]);
 
-    // Date calculation
-    const getSimDate = () => {
-        const saved = localStorage.getItem('simDate');
-        return saved ? new Date(saved) : new Date();
-    };
-
-    const simDateObj = getSimDate();
-    const maxAllowedDate = new Date(simDateObj);
+    // Date calculation — always real time. FloatAction's Sim Date is a
+    // display-only convenience elsewhere; a contract call must use the
+    // actual clock, since the chain checks deadlines against block.timestamp.
+    const now = new Date();
+    const maxAllowedDate = new Date(now);
     maxAllowedDate.setDate(maxAllowedDate.getDate() + 90);
     const maxAllowedDateStr = maxAllowedDate.toISOString().split('T')[0];
-    const simDateStr = simDateObj.toISOString().split('T')[0];
+    const nowStr = now.toISOString().split('T')[0];
 
     // Totals
     const totalPayout = Number(totalEscrowAmount) || 0;
@@ -292,7 +289,7 @@ function CreateAgreement() {
         // End-of-day keeps a deadline picked for today valid on submission.
         const toTimestamp = (d) => Math.floor(new Date(`${d}T23:59:59`).getTime() / 1000);
 
-        const duration = toTimestamp(lastMilestone.deadline) - Math.floor(simDateObj.getTime() / 1000);
+        const duration = toTimestamp(lastMilestone.deadline) - Math.floor(now.getTime() / 1000);
         const milestoneInputs = milestones.map((m) => ({
             deadline: toTimestamp(m.deadline),
             payoutPercent: Number(m.payoutPercentage),
@@ -312,7 +309,7 @@ function CreateAgreement() {
         }
     };
 
-    if (!isCarrier) {
+    if (!isShipper) {
         return <Navigate to="/main" replace />;
     }
 
@@ -407,7 +404,7 @@ function CreateAgreement() {
                                                 <Form.Label className="fw-semibold small">Deadline</Form.Label>
                                                 <Form.Control
                                                     type="date"
-                                                    min={simDateStr}
+                                                    min={nowStr}
                                                     max={index === milestones.length - 1 ? maxAllowedDateStr : undefined}
                                                     value={m.deadline}
                                                     onChange={(e) => updateMilestone(m.id, 'deadline', e.target.value)}

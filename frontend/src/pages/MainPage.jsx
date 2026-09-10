@@ -60,6 +60,7 @@ function MainPage() {
             const account = localStorage.getItem('account');
             const profile = await client.login();
             setName(profile.name);
+            localStorage.setItem(`profile:${account}`, JSON.stringify(profile));
 
             const addresses = await client.listMyAgreements();
             const events = (await Promise.all(addresses.map((a) => client.checkDeadlines(a)))).filter(Boolean);

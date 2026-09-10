@@ -7,7 +7,6 @@ import CreateAgreement from './pages/CreateAgreement.jsx';
 import AgreementDetail from './pages/AgreementDetail.jsx';
 import Transactions from './pages/Transactions.jsx';
 import CounterDemo from './pages/CounterDemo.jsx';
-import RefundDemo from './pages/RefundDemo.jsx';
 import CheckpointTest from './pages/CheckpointTest.jsx';
 
 function isRegistered(account) {
@@ -49,7 +48,6 @@ function App() {
         <Route path="/agreement/:id" element={<ProtectedRoute><AgreementDetail /></ProtectedRoute>} />
         <Route path="/transactions" element={<ProtectedRoute><Transactions /></ProtectedRoute>} />
         <Route path="/counter-demo" element={<CounterDemo />} />
-        <Route path="/refund-demo" element={<RefundDemo />} />
         <Route path="/checkpoint-test" element={<CheckpointTest />} />
       </Routes>
     </BrowserRouter>
