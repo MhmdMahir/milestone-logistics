@@ -62,7 +62,12 @@ contract LogisticsContract is ILogisticsContract {
       string[] memory checkpointDescriptions = _milestones[i].checkpointDescriptions;
       for (uint256 j = 0; j < checkpointDescriptions.length; j++) {
         milestone.checkpoints.push(
-          MilestoneCheckpoint({description: checkpointDescriptions[j], isRequested: false, isCompleted: false})
+          MilestoneCheckpoint({
+            description: checkpointDescriptions[j],
+            isRequested: false,
+            isCompleted: false,
+            completedAt: 0
+          })
         );
       }
     }
@@ -154,6 +159,7 @@ contract LogisticsContract is ILogisticsContract {
     require(!checkpoint.isCompleted, "LogisticsContract: checkpoint already completed");
 
     checkpoint.isCompleted = true;
+    checkpoint.completedAt = block.timestamp;
     emit CheckpointApproved(milestoneIndex, checkpointIndex);
 
     bool allCompleted = true;

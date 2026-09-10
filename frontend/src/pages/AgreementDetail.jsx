@@ -149,7 +149,14 @@ function AgreementDetail() {
                         <span className={`badge ${cp.isCompleted ? 'bg-success' : 'bg-secondary'}`}>
                           {cp.isCompleted ? '✓' : cpIdx + 1}
                         </span>
-                        <span className={cp.isCompleted ? 'text-dark' : 'text-muted'}>{cp.description}</span>
+                        <span className={cp.isCompleted ? 'text-dark' : 'text-muted'}>
+                          {cp.description}
+                          {cp.isCompleted && (
+                            <span className="text-muted small ms-2">
+                              ({new Date(cp.completedAt * 1000).toLocaleString()})
+                            </span>
+                          )}
+                        </span>
                       </div>
                       {index === activeMilestoneIndex && !cp.isCompleted && isCarrier && !cp.isRequested && (
                         <Button

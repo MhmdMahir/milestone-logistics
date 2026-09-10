@@ -19,6 +19,7 @@ export interface MilestoneCheckpoint {
   description: string;
   isRequested: boolean;
   isCompleted: boolean;
+  completedAt: number; // unix seconds; 0 when not yet completed
 }
 
 export interface Milestone {

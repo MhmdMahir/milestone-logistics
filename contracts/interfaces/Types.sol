@@ -43,6 +43,7 @@ struct MilestoneCheckpoint {
   string description;
   bool isRequested;
   bool isCompleted;
+  uint256 completedAt;
 }
 
 struct Milestone {

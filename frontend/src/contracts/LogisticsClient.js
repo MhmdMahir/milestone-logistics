@@ -108,6 +108,7 @@ export class LogisticsClient {
           description: c.description,
           isRequested: c.isRequested,
           isCompleted: c.isCompleted,
+          completedAt: Number(c.completedAt),
         })),
       })),
     };
