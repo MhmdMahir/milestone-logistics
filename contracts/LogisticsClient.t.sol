@@ -53,6 +53,9 @@ contract LogisticsClientTest is Test {
     vm.prank(shipper);
     client.register("shipper@example.com", "Alice", UserRole.Shipper);
 
+    vm.prank(carrier);
+    client.register("carrier@example.com", "Bob", UserRole.Carrier);
+
     vm.prank(shipper);
     address agreementAddress = client.createAgreement{value: totalPayout}(carrier, totalPayout, 1 days, _milestones());
     LogisticsContract agreement = LogisticsContract(agreementAddress);

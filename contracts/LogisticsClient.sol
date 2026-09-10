@@ -12,10 +12,17 @@ import {ContractStatus, Milestone, MilestoneInput, Transaction, UserProfile, Use
 // This facade uses the additive native-ETH factory; the original ERC-20
 // AgreementFactory and Escrow contracts remain available and unchanged.
 contract LogisticsClient is ILogisticsClient {
+  //Bounds keep the LogisticsContract constructor's milestone loop inside the block gas limit. Without them an oversized agreement simply fails to deploy.
+  uint256 private constant MAX_MILESTONES = 10;
+  uint256 private constant MAX_CHECKPOINTS = 10;
+  uint256 private constant MAX_DURATION = 90 days; //Agreement duration
+
   IUserRegistry public userRegistry;
   INativeAgreementFactory public agreementFactory;
 
   constructor(address _userRegistry, address _agreementFactory) {
+    require(_userRegistry != address(0), "LogisticsClient: registry is the zero address");
+    require(_agreementFactory != address(0), "LogisticsClient: factory is the zero address");
     userRegistry = IUserRegistry(_userRegistry);
     agreementFactory = INativeAgreementFactory(_agreementFactory);
   }
@@ -34,13 +41,54 @@ contract LogisticsClient is ILogisticsClient {
     uint256 duration,
     MilestoneInput[] calldata milestones
   ) external payable returns (address agreement) {
-    return agreementFactory.createAgreement{value: msg.value}(
-      msg.sender,
-      carrier,
-      totalPayoutValue,
-      duration,
-      milestones
+    require(carrier != address(0), "LogisticsClient: carrier is the zero address");
+    require(carrier != msg.sender, "LogisticsClient: shipper and carrier must differ");
+    require(totalPayoutValue > 0, "LogisticsClient: payout value must be greater than zero");
+    require(userRegistry.isRegistered(msg.sender), "LogisticsClient: shipper is not registered");
+    require(userRegistry.isRegistered(carrier), "LogisticsClient: carrier is not registered");
+    require(
+      userRegistry.getUser(msg.sender).role == UserRole.Shipper, "LogisticsClient: caller is not a shipper"
     );
+    require(userRegistry.getUser(carrier).role == UserRole.Carrier, "LogisticsClient: carrier is not a carrier");
+
+    _validateSchedule(duration, milestones);
+
+    agreement = agreementFactory.createAgreement{value: msg.value}(
+      msg.sender, carrier, totalPayoutValue, duration, milestones
+    );
+  }
+
+  function _validateSchedule(uint256 duration, MilestoneInput[] calldata milestones) private view {
+    require(milestones.length > 0, "LogisticsClient: at least one milestone required");
+    require(milestones.length <= MAX_MILESTONES, "LogisticsClient: too many milestones");
+    require(duration > 0, "LogisticsClient: duration must be greater than zero");
+    require(duration <= MAX_DURATION, "LogisticsClient: duration exceeds the 90 day maximum");
+
+    uint256 previousDeadline = block.timestamp;
+    uint256 latestAllowed = block.timestamp + duration;
+
+    for (uint256 i = 0; i < milestones.length; i++) {
+      MilestoneInput calldata m = milestones[i];
+
+      require(bytes(m.title).length > 0, "LogisticsClient: milestone title is required");
+      require(m.payoutPercent > 0, "LogisticsClient: milestone payout must be greater than zero");
+      require(m.deadline > previousDeadline, "LogisticsClient: milestone deadlines must be ascending");
+      require(m.deadline <= latestAllowed, "LogisticsClient: milestone deadline exceeds duration");
+      require(
+        m.checkpointDescriptions.length > 0, "LogisticsClient: milestone requires at least one checkpoint"
+      );
+      require(
+        m.checkpointDescriptions.length <= MAX_CHECKPOINTS, "LogisticsClient: too many checkpoints in milestone"
+      );
+
+      for (uint256 j = 0; j < m.checkpointDescriptions.length; j++) {
+        require(
+          bytes(m.checkpointDescriptions[j]).length > 0, "LogisticsClient: checkpoint description is required"
+        );
+      }
+
+      previousDeadline = m.deadline;
+    }
   }
 
   function listMyAgreements() external view returns (address[] memory) {

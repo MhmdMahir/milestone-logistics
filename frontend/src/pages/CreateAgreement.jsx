@@ -270,35 +270,45 @@ function CreateAgreement() {
         );
     };
 
+    const [submitting, setSubmitting] = useState(false);
+
     const handleSubmit = async (e) => {
         e.preventDefault();
-        if (!carrier) {
-            alert('Please enter the carrier\'s wallet address.');
+
+        if (!ethers.isAddress(carrier)) {
+            alert('Carrier must be a wallet address starting with 0x.');
             return;
         }
         if (totalPercentage !== 100) {
             alert(`Milestone payout percentages must sum to 100% (currently ${totalPercentage}%).`);
             return;
         }
-        if (lastDeadlineInvalid) {
-            alert('The last milestone deadline cannot exceed 90 days from the current date.');
+        if (milestones.some((m) => !m.deadline)) {
+            alert('Every milestone needs a deadline.');
             return;
         }
 
-        const duration = Math.floor((new Date(lastMilestone.deadline).getTime() - simDateObj.getTime()) / 1000);
+        // Date inputs give midnight, which is already past for today's date.
+        // End-of-day keeps a deadline picked for today valid on submission.
+        const toTimestamp = (d) => Math.floor(new Date(`${d}T23:59:59`).getTime() / 1000);
+
+        const duration = toTimestamp(lastMilestone.deadline) - Math.floor(simDateObj.getTime() / 1000);
         const milestoneInputs = milestones.map((m) => ({
-            deadline: Math.floor(new Date(m.deadline).getTime() / 1000),
+            deadline: toTimestamp(m.deadline),
             payoutPercent: Number(m.payoutPercentage),
             title: m.name,
             checkpointDescriptions: m.checkpoints.map((c) => c.description),
         }));
 
+        setSubmitting(true);
         try {
             const client = await getLogisticsClient();
             await client.createAgreement(carrier, ethers.parseEther(String(totalEscrowAmount)), duration, milestoneInputs);
             navigate('/main', { state: { created: true } });
         } catch (err) {
             alert(err.message);
+        } finally {
+            setSubmitting(false);
         }
     };
 
@@ -327,6 +337,9 @@ function CreateAgreement() {
                                     onChange={(e) => setCarrier(e.target.value)}
                                     required
                                 />
+                                <Form.Text className="text-muted">
+                                    The carrier must already be registered on the platform.
+                                </Form.Text>
                             </Form.Group>
                         </div>
                         <div className="col-md-12">
@@ -486,7 +499,7 @@ function CreateAgreement() {
                             variant="warning"
                             size="lg"
                             className="w-100 fw-bold mt-2 py-2 shadow-sm"
-                            disabled={totalPercentage !== 100 || lastDeadlineInvalid}
+                            disabled={submitting || totalPercentage !== 100 || lastDeadlineInvalid}
                         >
                             Create Agreement
                         </Button>
