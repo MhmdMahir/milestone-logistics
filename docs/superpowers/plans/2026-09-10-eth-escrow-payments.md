@@ -1183,13 +1183,19 @@ git commit -m "Fund agreements with native ETH from the frontend, drop faucet/ap
 Run: `npx hardhat test solidity`
 Expected: PASS — same green suite as the end of Task 2.
 
-- [ ] **Step 2: Deploy to an ephemeral network and run the seed script against it**
+- [ ] **Step 2: Deploy to a persistent local node and run the seed script against it**
 
-Run: `npx hardhat ignition deploy ignition/modules/Logistics.ts --network hardhatMainnet`
+`hardhatMainnet` is an ephemeral in-memory network that resets between separate CLI invocations (Ignition doesn't even persist a deployment record for it), so a deploy and a script run as two separate commands against it don't share state. Use a real local node instead:
+
+Start a persistent node in the background: `npx hardhat node` (note: needs to be stopped afterward).
+
+Run: `npx hardhat ignition deploy ignition/modules/Logistics.ts --network localhost`
 Expected: deploys `UserRegistry`, `AgreementFactory`, `LogisticsClient` with no errors (same as Task 3's check, confirming Task 4 didn't touch anything deploy-relevant).
 
-Run: `npx hardhat run test/createAgreementTest.ts --network hardhatMainnet`
+Run: `npx hardhat run test/createAgreementTest.ts --network localhost`
 Expected: this script already calls `client.connect(shipper).createAgreement(carrier.address, totalPayoutValue, duration, milestones, { value: totalPayoutValue })` — it was written for the native-ETH shape and never updated when the repo temporarily switched to ERC-20, so this is the first time it can actually pass end-to-end. Expected output: registration for both wallets, "Agreement deployed at: 0x...", "Funded with 3.0 ETH, split 30 / 70", and every entry under "Validation checks" printed as `rejected — ...` (none printed as `NOT REJECTED`).
+
+Afterward: stop the background node, and delete the throwaway `ignition/deployments/chain-31337/` record it created (this is separate from the real `chain-1337` Ganache deployment — don't touch that one).
 
 - [ ] **Step 3: Frontend build check**
 

@@ -23,9 +23,14 @@ contract Escrow is IEscrow {
   }
 
   function lockFund() external payable {
+    require(status == EscrowStatus.Locked, "Escrow: not locked");
+
     emit FundLocked(msg.sender, msg.value);
   }
 
+  // Assumes `carrier`/`shipper` are EOAs (enforced upstream by UserRegistry,
+  // which only registers wallet addresses) — a reverting-on-receive recipient
+  // contract would permanently brick this escrow's exit path.
   function releasePayment(uint256 amount) external onlyAgreement {
     require(status == EscrowStatus.Locked, "Escrow: not locked");
 

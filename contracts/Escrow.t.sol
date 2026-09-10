@@ -96,4 +96,14 @@ contract EscrowTest is Test {
     escrow.releasePayment(0.1 ether);
     vm.stopPrank();
   }
+
+  function test_RevertWhen_LockFundCalledAfterRefunded() public {
+    escrow.lockFund{value: 1 ether}();
+
+    vm.prank(address(agreement));
+    escrow.refund();
+
+    vm.expectRevert("Escrow: not locked");
+    escrow.lockFund{value: 1 ether}();
+  }
 }
