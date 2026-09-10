@@ -30,7 +30,14 @@ and the Solidity unit tests that fund through the ERC-20 path today
 (`Escrow.t.sol`, `AgreementFactory.t.sol`, `LogisticsClient.t.sol`,
 `LogisticsContract.t.sol`). `PaymentToken.sol` / `PaymentToken.t.sol` are
 relocated to `Token.sol` / `Token.t.sol` (contract renamed `Token`), body
-otherwise unchanged.
+otherwise unchanged. `scripts/createTestAgreement.ts` (a hand-run,
+hardcoded-address script for manually setting up a test agreement against a
+live Ganache deployment) also directly instantiates `Escrow` and calls
+`lockFund` with the old ABI — its `PAYMENT_TOKEN` constant and token
+faucet/transfer step are dropped in favor of deploying `Escrow` with one
+arg and funding via `lockFund{value: payout}()`. `SHIPPER`/`CARRIER`/
+`LOGISTICS_CLIENT` stay hardcoded, hand-edited before each run as today —
+out of this migration's concern.
 
 Out of scope: `CreateAgreement.jsx`, `AgreementDetail.jsx`, `MainPage.jsx` —
 these already format `totalPayoutValue`/`payoutRemaining` with
