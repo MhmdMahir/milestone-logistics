@@ -4,7 +4,6 @@ pragma solidity ^0.8.34;
 import {Test} from "forge-std/Test.sol";
 import {LogisticsClient} from "./LogisticsClient.sol";
 import {AgreementFactory} from "./AgreementFactory.sol";
-import {Token} from "./Token.sol";
 import {UserRegistry} from "./UserRegistry.sol";
 import {LogisticsContract} from "./LogisticsContract.sol";
 import {ContractStatus, MilestoneInput, MilestoneStatus, TransactionType, UserProfile, UserRole} from "./interfaces/Types.sol";
@@ -12,7 +11,6 @@ import {ContractStatus, MilestoneInput, MilestoneStatus, TransactionType, UserPr
 contract LogisticsClientTest is Test {
   UserRegistry registry;
   AgreementFactory factory;
-  Token token;
   LogisticsClient client;
 
   address shipper = address(0xA11CE);
@@ -23,14 +21,11 @@ contract LogisticsClientTest is Test {
 
   function setUp() public {
     registry = new UserRegistry();
-    token = new Token();
-    factory = new AgreementFactory(address(token));
+    factory = new AgreementFactory();
     client = new LogisticsClient(address(registry), address(factory));
     registry.setClient(address(client));
     factory.setClient(address(client));
-
-    vm.prank(shipper);
-    token.faucet();
+    vm.deal(shipper, 2 ether);
   }
 
   function _milestones() internal view returns (MilestoneInput[] memory milestones) {
@@ -62,16 +57,13 @@ contract LogisticsClientTest is Test {
     client.register("carrier@example.com", "Bob", UserRole.Carrier);
 
     vm.prank(shipper);
-    token.approve(address(factory), totalPayout);
-
-    vm.prank(shipper);
-    address agreementAddress = client.createAgreement(carrier, totalPayout, 1 days, _milestones());
+    address agreementAddress = client.createAgreement{value: totalPayout}(carrier, totalPayout, 1 days, _milestones());
     LogisticsContract agreement = LogisticsContract(agreementAddress);
 
     assertEq(uint256(agreement.status()), uint256(ContractStatus.Activated));
     assertEq(agreement.payoutRemaining(), totalPayout);
 
-    uint256 shipperBefore = token.balanceOf(shipper);
+    uint256 shipperBefore = shipper.balance;
     vm.warp(block.timestamp + 1 days + 1);
 
     vm.prank(keeper);
@@ -80,7 +72,7 @@ contract LogisticsClientTest is Test {
     assertEq(uint256(agreement.status()), uint256(ContractStatus.Terminated));
     assertEq(uint256(agreement.getMilestone(0).status), uint256(MilestoneStatus.Failed));
     assertEq(agreement.payoutRemaining(), totalPayout);
-    assertEq(token.balanceOf(shipper), shipperBefore + totalPayout);
+    assertEq(shipper.balance, shipperBefore + totalPayout);
     assertEq(uint256(agreement.getTransactions()[1].txType), uint256(TransactionType.Refund));
   }
 
