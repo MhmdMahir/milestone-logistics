@@ -20,9 +20,6 @@ async function main() {
   const LOGISTICS_CLIENT =
     "0xBa994ae6751897C7d0466314afA417aE564EbeA5";
 
-  const PAYMENT_TOKEN =
-    "0xf9FD26612b81Af7BaC7E1d8d60Ff386d0bee0eBf";
-
   const shipper = [deployer, ...signers].find(
     (signer) => signer.address.toLowerCase() === SHIPPER.toLowerCase()
   );
@@ -109,8 +106,7 @@ async function main() {
     await ethers.getContractFactory("Escrow", deployer);
 
   const escrow = await Escrow.deploy(
-    agreementAddress,
-    PAYMENT_TOKEN
+    agreementAddress
   );
 
   await escrow.waitForDeployment();
@@ -141,12 +137,11 @@ async function main() {
   // 4. FUND ESCROW
   // ============================================================
 
-  console.log("4. Funding escrow with 1 PAY...");
+  console.log("4. Funding escrow with 1 ETH...");
 
-  const token = await ethers.getContractAt("PaymentToken", PAYMENT_TOKEN, shipper);
-  await (await token.faucet()).wait();
-  await (await token.transfer(escrowAddress, payout)).wait();
-  tx = await escrow.connect(shipper).lockFund(payout);
+  // shipper must already hold at least `payout` ETH on this Ganache network
+  // (true for its default pre-funded accounts).
+  tx = await escrow.connect(shipper).lockFund({ value: payout });
 
   await tx.wait();
 
