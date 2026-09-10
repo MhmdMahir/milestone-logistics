@@ -5,6 +5,7 @@ import { Accordion, Button, Form } from 'react-bootstrap';
 import Header from '../components/Header';
 import FixedFooter from '../components/FixedFooter';
 import { getLogisticsClient } from '../contracts';
+import { revertReason } from '../contracts/LogisticsClient';
 
 function MultiThumbSplitter({ milestones, setMilestones, totalPayout }) {
     const containerRef = useRef(null);
@@ -122,7 +123,7 @@ function CreateAgreement() {
 
     const account = localStorage.getItem('account');
     const profileRaw = account && localStorage.getItem(`profile:${account}`);
-    const isCarrier = profileRaw && JSON.parse(profileRaw).role === 'Carrier';
+    const isShipper = profileRaw && JSON.parse(profileRaw).role === 'Shipper';
 
     const [carrier, setCarrier] = useState('');
     const [totalEscrowAmount, setTotalEscrowAmount] = useState(0.1);
@@ -148,17 +149,14 @@ function CreateAgreement() {
         }
     ]);
 
-    // Date calculation
-    const getSimDate = () => {
-        const saved = localStorage.getItem('simDate');
-        return saved ? new Date(saved) : new Date();
-    };
-
-    const simDateObj = getSimDate();
-    const maxAllowedDate = new Date(simDateObj);
+    // Date calculation — always real time. FloatAction's Sim Date is a
+    // display-only convenience elsewhere; a contract call must use the
+    // actual clock, since the chain checks deadlines against block.timestamp.
+    const now = new Date();
+    const maxAllowedDate = new Date(now);
     maxAllowedDate.setDate(maxAllowedDate.getDate() + 90);
     const maxAllowedDateStr = maxAllowedDate.toISOString().split('T')[0];
-    const simDateStr = simDateObj.toISOString().split('T')[0];
+    const nowStr = now.toISOString().split('T')[0];
 
     // Totals
     const totalPayout = Number(totalEscrowAmount) || 0;
@@ -270,39 +268,56 @@ function CreateAgreement() {
         );
     };
 
+    const [submitting, setSubmitting] = useState(false);
+
     const handleSubmit = async (e) => {
         e.preventDefault();
-        if (!carrier) {
-            alert('Please enter the carrier\'s wallet address.');
+
+        if (!ethers.isAddress(carrier)) {
+            alert('Carrier must be a wallet address starting with 0x.');
             return;
         }
         if (totalPercentage !== 100) {
             alert(`Milestone payout percentages must sum to 100% (currently ${totalPercentage}%).`);
             return;
         }
-        if (lastDeadlineInvalid) {
-            alert('The last milestone deadline cannot exceed 90 days from the current date.');
+        if (milestones.some((m) => !m.deadline)) {
+            alert('Every milestone needs a deadline.');
             return;
         }
 
-        const duration = Math.floor((new Date(lastMilestone.deadline).getTime() - simDateObj.getTime()) / 1000);
+        // Date inputs give midnight, which is already past for today's date.
+        // End-of-day keeps a deadline picked for today valid on submission.
+        const toTimestamp = (d) => Math.floor(new Date(`${d}T23:59:59`).getTime() / 1000);
+
         const milestoneInputs = milestones.map((m) => ({
-            deadline: Math.floor(new Date(m.deadline).getTime() / 1000),
+            deadline: toTimestamp(m.deadline),
             payoutPercent: Number(m.payoutPercentage),
             title: m.name,
             checkpointDescriptions: m.checkpoints.map((c) => c.description),
         }));
 
+        setSubmitting(true);
         try {
             const client = await getLogisticsClient();
+
+            // The contract checks deadlines against its own block.timestamp,
+            // not the browser's clock — those can drift, and the gap only
+            // grows while the form sits open. Basing duration on the chain's
+            // own current time keeps it valid regardless of that drift.
+            const chainNow = (await client.signer.provider.getBlock('latest')).timestamp;
+            const duration = toTimestamp(lastMilestone.deadline) - chainNow;
+
             await client.createAgreement(carrier, ethers.parseEther(String(totalEscrowAmount)), duration, milestoneInputs);
             navigate('/main', { state: { created: true } });
         } catch (err) {
-            alert(err.message);
+            alert(revertReason(err));
+        } finally {
+            setSubmitting(false);
         }
     };
 
-    if (!isCarrier) {
+    if (!isShipper) {
         return <Navigate to="/main" replace />;
     }
 
@@ -327,6 +342,9 @@ function CreateAgreement() {
                                     onChange={(e) => setCarrier(e.target.value)}
                                     required
                                 />
+                                <Form.Text className="text-muted">
+                                    The carrier must already be registered on the platform.
+                                </Form.Text>
                             </Form.Group>
                         </div>
                         <div className="col-md-12">
@@ -394,7 +412,7 @@ function CreateAgreement() {
                                                 <Form.Label className="fw-semibold small">Deadline</Form.Label>
                                                 <Form.Control
                                                     type="date"
-                                                    min={simDateStr}
+                                                    min={nowStr}
                                                     max={index === milestones.length - 1 ? maxAllowedDateStr : undefined}
                                                     value={m.deadline}
                                                     onChange={(e) => updateMilestone(m.id, 'deadline', e.target.value)}
@@ -486,7 +504,7 @@ function CreateAgreement() {
                             variant="warning"
                             size="lg"
                             className="w-100 fw-bold mt-2 py-2 shadow-sm"
-                            disabled={totalPercentage !== 100 || lastDeadlineInvalid}
+                            disabled={submitting || totalPercentage !== 100 || lastDeadlineInvalid}
                         >
                             Create Agreement
                         </Button>

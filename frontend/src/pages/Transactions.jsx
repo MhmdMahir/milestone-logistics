@@ -1,6 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { ethers } from 'ethers';
+import { Form } from 'react-bootstrap';
 import Header from '../components/Header';
 import FixedFooter from '../components/FixedFooter';
 import { getLogisticsClient } from '../contracts';
@@ -13,6 +14,9 @@ const TYPE_BADGE = {
 
 function Transactions() {
   const [rows, setRows] = useState([]);
+  const [names, setNames] = useState({});
+  const [search, setSearch] = useState('');
+  const [typeFilter, setTypeFilter] = useState('All');
 
   useEffect(() => {
     const load = async () => {
@@ -24,20 +28,54 @@ function Transactions() {
           return txs.map((t, i) => ({ ...t, agreementId: address, key: `${address}-${i}` }));
         })
       );
-      setRows(perAgreement.flat().sort((a, b) => b.timestamp - a.timestamp));
+      const flat = perAgreement.flat().sort((a, b) => b.timestamp - a.timestamp);
+      setRows(flat);
+
+      const uniqueWallets = [...new Set(flat.flatMap((t) => [t.sender, t.receiver]))];
+      const resolved = await Promise.all(uniqueWallets.map((w) => client.getUserName(w)));
+      setNames(Object.fromEntries(uniqueWallets.map((w, i) => [w, resolved[i]])));
     };
     load();
     window.ethereum?.on('accountsChanged', load);
     return () => window.ethereum?.removeListener('accountsChanged', load);
   }, []);
 
+  const filteredRows = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return rows.filter((t) => {
+      if (typeFilter !== 'All' && t.txType !== typeFilter) return false;
+      if (!q) return true;
+      const haystack = [t.agreementId, t.sender, t.receiver, names[t.sender], names[t.receiver]]
+        .join(' ')
+        .toLowerCase();
+      return haystack.includes(q);
+    });
+  }, [rows, names, search, typeFilter]);
+
   return (
     <div className="container pt-5 mt-4 pb-5 text-start">
       <Header />
       <h1 className="h2 fw-bold text-dark mb-4">Transactions</h1>
 
-      {rows.length === 0 ? (
-        <p className="text-muted">No transactions yet.</p>
+      {rows.length > 0 && (
+        <div className="d-flex gap-3 mb-3">
+          <Form.Control
+            type="search"
+            placeholder="Search by agreement, sender, or receiver"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+          <Form.Select style={{ maxWidth: '200px' }} value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)}>
+            <option value="All">All types</option>
+            <option value="AgreementCreation">AgreementCreation</option>
+            <option value="Payoff">Payoff</option>
+            <option value="Refund">Refund</option>
+          </Form.Select>
+        </div>
+      )}
+
+      {filteredRows.length === 0 ? (
+        <p className="text-muted">No transactions match.</p>
       ) : (
         <div className="card p-3">
           <div className="table-responsive">
@@ -53,9 +91,9 @@ function Transactions() {
                 </tr>
               </thead>
               <tbody>
-                {rows.map((t) => (
+                {filteredRows.map((t) => (
                   <tr key={t.key}>
-                    <td className="text-muted small">{new Date(t.timestamp * 1000).toISOString().split('T')[0]}</td>
+                    <td className="text-muted small">{new Date(t.timestamp * 1000).toLocaleString()}</td>
                     <td>
                       <Link to={`/agreement/${t.agreementId}`} className="text-decoration-none">
                         {t.agreementId.slice(0, 8)}
@@ -64,8 +102,8 @@ function Transactions() {
                     <td>
                       <span className={`badge ${TYPE_BADGE[t.txType]}`}>{t.txType}</span>
                     </td>
-                    <td className="small">{t.sender.slice(0, 10)}</td>
-                    <td className="small">{t.receiver.slice(0, 10)}</td>
+                    <td className="small">{names[t.sender] ?? t.sender.slice(0, 10)}</td>
+                    <td className="small">{names[t.receiver] ?? t.receiver.slice(0, 10)}</td>
                     <td className="text-end fw-semibold text-dark">{ethers.formatEther(t.amount)} ETH</td>
                   </tr>
                 ))}

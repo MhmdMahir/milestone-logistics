@@ -19,6 +19,7 @@ export interface MilestoneCheckpoint {
   description: string;
   isRequested: boolean;
   isCompleted: boolean;
+  completedAt: number; // unix seconds; 0 when not yet completed
 }
 
 export interface Milestone {
@@ -66,6 +67,9 @@ export interface LogisticsClient {
   // USER
   login(): Promise<UserProfile>;
   register(mail: string, name: string, role: UserRole): Promise<void>;
+  // Empty name (unregistered address) means "escrow", not a user - see impl.
+  getUserName(address: string): Promise<string>;
+  getUserProfile(address: string): Promise<{ name: string; mail: string }>;
 
   // AGREEMENT
   createAgreement(
@@ -81,6 +85,9 @@ export interface LogisticsClient {
   // MILESTONE / CHECKPOINT
   requestCheckpoint(agreementAddress: string, milestoneIndex: number, checkpointIndex: number): Promise<void>;
   approveCheckpoint(agreementAddress: string, milestoneIndex: number, checkpointIndex: number): Promise<void>;
+  // DEMO-ONLY: evaluates against FloatAction's "Sim Date" (localStorage
+  // "simDate"), not the real clock, so the deadline-failure path can be
+  // demoed without waiting real time. Never do this in a production client.
   checkDeadlines(agreementAddress: string): Promise<DeadlineEvent | null>;
 
   // TRANSACTIONS

@@ -17,12 +17,13 @@ interface ILogisticsClient {
 
   function register(string calldata mail, string calldata name, UserRole role) external;
 
+  // Caller sends msg.value == totalPayoutValue directly (native ETH funding).
   function createAgreement(
     address carrier,
     uint256 totalPayoutValue,
     uint256 duration,
     MilestoneInput[] calldata milestones
-  ) external returns (address agreement);
+  ) external payable returns (address agreement);
 
   function listMyAgreements() external view returns (address[] memory);
 
@@ -45,7 +46,9 @@ interface ILogisticsClient {
 
   function approveCheckpoint(address agreement, uint256 milestoneIndex, uint256 checkpointIndex) external;
 
-  function checkDeadlines(address agreement) external;
+  // currentTime: see ILogisticsContract.checkDeadlines — caller-supplied for
+  // demo purposes only, forwarded as-is.
+  function checkDeadlines(address agreement, uint256 currentTime) external;
 
   function listTransactions(address agreement) external view returns (Transaction[] memory);
 }

@@ -7,6 +7,7 @@ import CardList from '../components/CardList';
 import FixedFooter from '../components/FixedFooter';
 import FloatAction from '../components/FloatAction';
 import { getLogisticsClient } from '../contracts';
+import { simulatedNow } from '../contracts/LogisticsClient';
 
 function resolveName(address) {
     const raw = localStorage.getItem(`profile:${address}`);
@@ -60,22 +61,25 @@ function MainPage() {
             const account = localStorage.getItem('account');
             const profile = await client.login();
             setName(profile.name);
+            localStorage.setItem(`profile:${account}`, JSON.stringify(profile));
 
             const addresses = await client.listMyAgreements();
-            const events = (await Promise.all(addresses.map((a) => client.checkDeadlines(a)))).filter(Boolean);
-            const details = await Promise.all(addresses.map((a) => client.getAgreementDetails(a)));
-            setAgreements(details.map((d) => summarize(d, account)));
+            let details = await Promise.all(addresses.map((a) => client.getAgreementDetails(a)));
 
-            if (events.length) {
-                const messages = events.map((e) => {
-                    const title = `Agreement ${e.agreementAddress.slice(0, 8)}`;
-                    const amount = `${ethers.formatEther(e.amount)} ETH`;
-                    if (e.type === 'Terminated') return `${title} terminated — refunded ${amount} to shipper`;
-                    if (e.type === 'Completed') return `${title} completed — final payout of ${amount} released`;
-                    return `${title}: milestone "${e.milestone}" completed — ${amount} released`;
-                });
-                window.dispatchEvent(new CustomEvent('contractStatusChange', { detail: messages }));
+            // Free, local check first — only pay for the real checkDeadlines()
+            // call on the agreements that actually look overdue, instead of
+            // firing it for every agreement on every load.
+            const now = simulatedNow();
+            const overdue = details.filter((d) => {
+                const inProgress = d.milestones.find((m) => m.status === 'InProgress');
+                return d.status === 'Activated' && inProgress && now > inProgress.deadline;
+            });
+            if (overdue.length) {
+                await Promise.all(overdue.map((d) => client.checkDeadlines(d.address)));
+                details = await Promise.all(addresses.map((a) => client.getAgreementDetails(a)));
             }
+
+            setAgreements(details.map((d) => summarize(d, account)));
         };
         load();
         window.addEventListener('simDateChanged', load);
@@ -95,7 +99,7 @@ function MainPage() {
     return (
         <div className="container pt-5 mt-4 pb-5 text-start">
             <Header />
-            <ToastContainer position="top-end" className="p-3" style={{ zIndex: 1050 }}>
+            <ToastContainer position="bottom-end" className="p-3" style={{ zIndex: 1050 }}>
                 <Toast bg="success" show={showCreatedToast} onClose={() => setShowCreatedToast(false)} delay={4000} autohide>
                     <Toast.Body className="text-white fw-semibold">Agreement created successfully!</Toast.Body>
                 </Toast>
@@ -126,10 +130,12 @@ function MainPage() {
             </div>
 
             {agreements.some((a) => a.status === 'Completed' || a.status === 'Terminated') && (
-                <div className="mb-4">
-                    <h2 className="h4 fw-bold text-dark border-bottom pb-2 mb-3">Archive</h2>
+                <details className="mb-4">
+                    <summary className="h4 fw-bold text-dark border-bottom pb-2 mb-3" style={{ cursor: 'pointer' }}>
+                        Archive
+                    </summary>
                     <CardList agreements={agreements.filter((a) => a.status === 'Completed' || a.status === 'Terminated')} />
-                </div>
+                </details>
             )}
             <FloatAction />
             <FixedFooter />

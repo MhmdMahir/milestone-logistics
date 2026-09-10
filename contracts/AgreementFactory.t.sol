@@ -5,12 +5,10 @@ import {Test} from "forge-std/Test.sol";
 import {AgreementFactory} from "./AgreementFactory.sol";
 import {IAgreementFactory} from "./interfaces/IAgreementFactory.sol";
 import {LogisticsContract} from "./LogisticsContract.sol";
-import {PaymentToken} from "./PaymentToken.sol";
 import {ContractStatus, MilestoneInput, MilestoneStatus} from "./interfaces/Types.sol";
 
 contract AgreementFactoryTest is Test {
   AgreementFactory factory;
-  PaymentToken token;
 
   address client = address(0xC11E47);
   address shipperWallet = address(0xA11CE);
@@ -19,14 +17,9 @@ contract AgreementFactoryTest is Test {
   uint256 totalPayoutValue = 10 ether;
 
   function setUp() public {
-    token = new PaymentToken();
-    factory = new AgreementFactory(address(token));
+    factory = new AgreementFactory();
     factory.setClient(client);
-
-    vm.prank(shipperWallet);
-    token.faucet();
-    vm.prank(shipperWallet);
-    token.approve(address(factory), type(uint256).max);
+    vm.deal(client, 20 ether);
   }
 
   function _defaultMilestones() internal view returns (MilestoneInput[] memory milestones) {
@@ -37,24 +30,22 @@ contract AgreementFactoryTest is Test {
     milestones[0] = MilestoneInput({deadline: block.timestamp + 1 days, payoutPercent: 100, title: "Only leg", checkpointDescriptions: checkpoints});
   }
 
-  function test_RevertWhen_PaymentAllowanceIsInsufficient() public {
-    vm.prank(shipperWallet);
-    token.approve(address(factory), 1 ether);
-
+  function test_RevertWhen_PaymentDoesNotMatchTotalPayoutValue() public {
     vm.prank(client);
-    vm.expectRevert();
-    factory.createAgreement(shipperWallet, carrierWallet, totalPayoutValue, 1 days, _defaultMilestones());
+    vm.expectRevert("AgreementFactory: incorrect payment");
+    factory.createAgreement{value: 1 ether}(shipperWallet, carrierWallet, totalPayoutValue, 1 days, _defaultMilestones());
   }
 
   function test_RevertWhen_CreateAgreementCalledByNonClient() public {
+    vm.deal(shipperWallet, totalPayoutValue);
     vm.prank(shipperWallet);
     vm.expectRevert("AgreementFactory: caller is not the client");
-    factory.createAgreement(shipperWallet, carrierWallet, totalPayoutValue, 1 days, _defaultMilestones());
+    factory.createAgreement{value: totalPayoutValue}(shipperWallet, carrierWallet, totalPayoutValue, 1 days, _defaultMilestones());
   }
 
   function test_CreateAgreementDeploysActivatedAndFundedAgreement() public {
     vm.prank(client);
-    address agreementAddress = factory.createAgreement(
+    address agreementAddress = factory.createAgreement{value: totalPayoutValue}(
       shipperWallet, carrierWallet, totalPayoutValue, 1 days, _defaultMilestones()
     );
 
@@ -68,7 +59,7 @@ contract AgreementFactoryTest is Test {
 
   function test_CreateAgreementRecordsItForBothParties() public {
     vm.prank(client);
-    address agreementAddress = factory.createAgreement(
+    address agreementAddress = factory.createAgreement{value: totalPayoutValue}(
       shipperWallet, carrierWallet, totalPayoutValue, 1 days, _defaultMilestones()
     );
 
@@ -85,20 +76,17 @@ contract AgreementFactoryTest is Test {
     vm.prank(client);
     vm.expectEmit(false, true, true, true, address(factory));
     emit IAgreementFactory.AgreementCreated(address(0), shipperWallet, carrierWallet, totalPayoutValue);
-    factory.createAgreement(shipperWallet, carrierWallet, totalPayoutValue, 1 days, _defaultMilestones());
+    factory.createAgreement{value: totalPayoutValue}(shipperWallet, carrierWallet, totalPayoutValue, 1 days, _defaultMilestones());
   }
 
-  function test_CreateAgreementPullsPaymentFromShipperIntoEscrow() public {
-    uint256 shipperBalanceBefore = token.balanceOf(shipperWallet);
-
+  function test_CreateAgreementLocksPaymentIntoEscrow() public {
     vm.prank(client);
-    address agreementAddress = factory.createAgreement(
+    address agreementAddress = factory.createAgreement{value: totalPayoutValue}(
       shipperWallet, carrierWallet, totalPayoutValue, 1 days, _defaultMilestones()
     );
 
     LogisticsContract agreement = LogisticsContract(agreementAddress);
-    assertEq(token.balanceOf(shipperWallet), shipperBalanceBefore - totalPayoutValue);
-    assertEq(token.balanceOf(agreement.escrow()), totalPayoutValue);
+    assertEq(agreement.escrow().balance, totalPayoutValue);
   }
 
   function test_RevertWhen_SetClientCalledTwice() public {

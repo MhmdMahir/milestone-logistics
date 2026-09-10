@@ -4,13 +4,11 @@ pragma solidity ^0.8.34;
 import {Test} from "forge-std/Test.sol";
 import {LogisticsContract} from "./LogisticsContract.sol";
 import {Escrow} from "./Escrow.sol";
-import {PaymentToken} from "./PaymentToken.sol";
 import {ContractStatus, Milestone, MilestoneInput, MilestoneStatus, EscrowStatus} from "./interfaces/Types.sol";
 
 contract LogisticsContractTest is Test {
   LogisticsContract logistics;
   Escrow escrow;
-  PaymentToken token;
 
   address factory = address(0xFACADE);
   address client = address(0xC11E47);
@@ -28,14 +26,12 @@ contract LogisticsContractTest is Test {
     milestone0Deadline = start + 1 days;
     milestone1Deadline = start + 2 days;
 
-    token = new PaymentToken();
-    vm.prank(shipperWallet);
-    token.faucet();
+    vm.deal(shipperWallet, 20 ether);
 
     vm.prank(factory);
     logistics = new LogisticsContract(shipperWallet, carrierWallet, totalPayoutValue, 2 days, _defaultMilestones(), client);
 
-    escrow = new Escrow(address(logistics), address(token));
+    escrow = new Escrow(address(logistics));
 
     vm.prank(factory);
     logistics.setEscrow(address(escrow));
@@ -56,10 +52,7 @@ contract LogisticsContractTest is Test {
 
   function _fundAndActivate() internal {
     vm.prank(shipperWallet);
-    token.transfer(address(escrow), totalPayoutValue);
-
-    vm.prank(shipperWallet);
-    escrow.lockFund(totalPayoutValue);
+    escrow.lockFund{value: totalPayoutValue}();
 
     vm.prank(factory);
     logistics.activateContract();
@@ -75,7 +68,7 @@ contract LogisticsContractTest is Test {
   }
 
   function test_RevertWhen_SetEscrowCalledByNonFactory() public {
-    Escrow otherEscrow = new Escrow(address(logistics), address(token));
+    Escrow otherEscrow = new Escrow(address(logistics));
 
     vm.prank(stranger);
     vm.expectRevert("LogisticsContract: caller is not the factory");
@@ -84,10 +77,7 @@ contract LogisticsContractTest is Test {
 
   function test_RevertWhen_ActivateContractCalledBeforeFullyFunded() public {
     vm.prank(shipperWallet);
-    token.transfer(address(escrow), 1 ether);
-
-    vm.prank(shipperWallet);
-    escrow.lockFund(1 ether);
+    escrow.lockFund{value: 1 ether}();
 
     vm.prank(factory);
     vm.expectRevert("LogisticsContract: escrow not fully funded");
@@ -139,7 +129,7 @@ contract LogisticsContractTest is Test {
 
   function test_ApprovingAllCheckpointsCompletesMilestoneAndReleasesPayout() public {
     _fundAndActivate();
-    uint256 carrierBefore = token.balanceOf(carrierWallet);
+    uint256 carrierBefore = carrierWallet.balance;
 
     vm.prank(client);
     logistics.requestCheckpoint(carrierWallet, 0, 0);
@@ -155,7 +145,7 @@ contract LogisticsContractTest is Test {
     logistics.approveCheckpoint(shipperWallet, 0, 1);
 
     assertEq(uint256(logistics.getMilestone(0).status), uint256(MilestoneStatus.Completed));
-    assertEq(token.balanceOf(carrierWallet), carrierBefore + 4 ether);
+    assertEq(carrierWallet.balance, carrierBefore + 4 ether);
     assertEq(logistics.payoutRemaining(), 6 ether);
     assertEq(uint256(logistics.getMilestone(1).status), uint256(MilestoneStatus.InProgress));
   }
@@ -185,48 +175,50 @@ contract LogisticsContractTest is Test {
   function test_CheckDeadlinesIsNoopBeforeDeadlinePasses() public {
     _fundAndActivate();
 
-    logistics.checkDeadlines();
+    vm.prank(client);
+    logistics.checkDeadlines(block.timestamp);
 
     assertEq(uint256(logistics.status()), uint256(ContractStatus.Activated));
   }
 
   function test_CheckDeadlinesTerminatesAndRefundsShipperWhenOverdue() public {
     _fundAndActivate();
-    uint256 shipperBefore = token.balanceOf(shipperWallet);
+    uint256 shipperBefore = shipperWallet.balance;
 
     vm.warp(milestone0Deadline + 1);
-    logistics.checkDeadlines();
+    vm.prank(client);
+    logistics.checkDeadlines(block.timestamp);
 
     assertEq(uint256(logistics.status()), uint256(ContractStatus.Terminated));
     assertEq(uint256(logistics.getMilestone(0).status), uint256(MilestoneStatus.Failed));
-    assertEq(token.balanceOf(shipperWallet), shipperBefore + totalPayoutValue);
+    assertEq(shipperWallet.balance, shipperBefore + totalPayoutValue);
     assertEq(uint256(escrow.status()), uint256(EscrowStatus.Refunded));
   }
 
-  function test_TerminateContractCalledByShipperRefunds() public {
+  function test_TerminateAgreementCalledByShipperRefunds() public {
     _fundAndActivate();
-    uint256 shipperBefore = token.balanceOf(shipperWallet);
+    uint256 shipperBefore = shipperWallet.balance;
 
     vm.prank(client);
-    logistics.terminateContract(shipperWallet);
+    logistics.terminateAgreement(shipperWallet);
 
     assertEq(uint256(logistics.status()), uint256(ContractStatus.Terminated));
-    assertEq(token.balanceOf(shipperWallet), shipperBefore + totalPayoutValue);
+    assertEq(shipperWallet.balance, shipperBefore + totalPayoutValue);
   }
 
-  function test_RevertWhen_TerminateContractCalledByNonShipper() public {
+  function test_RevertWhen_TerminateAgreementCalledByNonShipper() public {
     _fundAndActivate();
 
     vm.prank(client);
     vm.expectRevert("LogisticsContract: caller is not the shipper");
-    logistics.terminateContract(stranger);
+    logistics.terminateAgreement(stranger);
   }
 
-  function test_RevertWhen_TerminateContractCalledByNonClient() public {
+  function test_RevertWhen_TerminateAgreementCalledByNonClient() public {
     _fundAndActivate();
 
     vm.prank(shipperWallet);
     vm.expectRevert("LogisticsContract: caller is not the client");
-    logistics.terminateContract(shipperWallet);
+    logistics.terminateAgreement(shipperWallet);
   }
 }

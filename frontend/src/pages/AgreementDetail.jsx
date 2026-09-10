@@ -5,23 +5,39 @@ import { Badge, Button } from 'react-bootstrap';
 import Header from '../components/Header';
 import FixedFooter from '../components/FixedFooter';
 import { getLogisticsClient } from '../contracts';
+import { revertReason, simulatedNow } from '../contracts/LogisticsClient';
 
 function AgreementDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
   const account = localStorage.getItem('account');
   const [agreement, setAgreement] = useState(null);
+  const [shipperProfile, setShipperProfile] = useState(null);
+  const [carrierProfile, setCarrierProfile] = useState(null);
   const [error, setError] = useState('');
 
   const load = useCallback(async () => {
     try {
       const client = await getLogisticsClient();
-      // Keeper-style: nothing polls this in the background, so re-check on
-      // every view (mirrors LogisticsContract.sol's checkDeadlines comment).
-      await client.checkDeadlines(id);
-      setAgreement(await client.getAgreementDetails(id));
+      let details = await client.getAgreementDetails(id);
+
+      // Free, local check first — only pay for the real checkDeadlines() call
+      // when it actually looks overdue, instead of firing it on every view.
+      const inProgress = details.milestones.find((m) => m.status === 'InProgress');
+      if (details.status === 'Activated' && inProgress && simulatedNow() > inProgress.deadline) {
+        await client.checkDeadlines(id);
+        details = await client.getAgreementDetails(id);
+      }
+
+      setAgreement(details);
+      const [shipper, carrier] = await Promise.all([
+        client.getUserProfile(details.shipper),
+        client.getUserProfile(details.carrier),
+      ]);
+      setShipperProfile(shipper);
+      setCarrierProfile(carrier);
     } catch (err) {
-      setError(err.message);
+      setError(revertReason(err));
     }
   }, [id]);
 
@@ -37,7 +53,7 @@ function AgreementDetail() {
       await action(client);
       await load();
     } catch (err) {
-      alert(err.message);
+      alert(revertReason(err));
     }
   };
 
@@ -76,11 +92,6 @@ function AgreementDetail() {
           <Badge bg={agreement.status === 'Activated' ? 'success' : 'secondary'} className="mt-1">
             {agreement.status}
           </Badge>
-          {isShipper && agreement.status === 'Activated' && (
-            <Button size="sm" variant="outline-danger" onClick={() => runAction((c) => c.terminateAgreement(id))}>
-              Terminate
-            </Button>
-          )}
         </div>
       </div>
 
@@ -90,10 +101,16 @@ function AgreementDetail() {
         <div className="row g-3">
           <div className="col-md-6">
             <span className="text-muted d-block small">Shipper</span>
+            {shipperProfile?.name && (
+              <span className="d-block">{shipperProfile.name} ({shipperProfile.mail})</span>
+            )}
             <span className="fw-semibold text-dark">{agreement.shipper}</span>
           </div>
           <div className="col-md-6">
             <span className="text-muted d-block small">Carrier</span>
+            {carrierProfile?.name && (
+              <span className="d-block">{carrierProfile.name} ({carrierProfile.mail})</span>
+            )}
             <span className="fw-semibold text-dark">{agreement.carrier}</span>
           </div>
           <div className="col-md-6">
@@ -106,6 +123,45 @@ function AgreementDetail() {
       {/* Milestones */}
       <section className="mb-5">
         <h2 className="h4 fw-bold text-dark border-bottom pb-2 mb-3">Milestones</h2>
+
+        {/* Progress stepper */}
+        <div className="d-flex align-items-center bg-white rounded-pill shadow-sm px-4 py-3 mb-4">
+          {agreement.milestones.map((m, index) => {
+            const isCompleted = m.status === 'Completed';
+            const isCurrent = m.status === 'InProgress';
+            const isFailed = m.status === 'Failed';
+            return (
+              <div key={index} className="d-flex align-items-center flex-grow-1">
+                <div className="d-flex flex-column align-items-center" style={{ minWidth: '90px' }}>
+                  <div
+                    className={`d-flex align-items-center justify-content-center rounded-circle fw-bold ${
+                      isCompleted
+                        ? 'bg-success text-white'
+                        : isFailed
+                        ? 'bg-danger text-white'
+                        : isCurrent
+                        ? 'bg-primary text-white'
+                        : 'bg-light text-muted border'
+                    }`}
+                    style={{ width: '28px', height: '28px', fontSize: '0.8rem' }}
+                  >
+                    {isCompleted ? '✓' : isFailed ? '✕' : index + 1}
+                  </div>
+                  <span className={`small mt-1 text-center ${isCurrent ? 'fw-semibold text-dark' : 'text-muted'}`}>
+                    {m.title}
+                  </span>
+                </div>
+                {index < agreement.milestones.length - 1 && (
+                  <div
+                    className={`flex-grow-1 ${isCompleted ? 'bg-success' : isFailed ? 'bg-danger' : 'bg-light'}`}
+                    style={{ height: '2px' }}
+                  />
+                )}
+              </div>
+            );
+          })}
+        </div>
+
         {agreement.milestones.map((m, index) => {
           const milestonePayout = ((totalPayout * Number(m.payoutPercent)) / 100).toFixed(4);
           return (
@@ -132,7 +188,14 @@ function AgreementDetail() {
                         <span className={`badge ${cp.isCompleted ? 'bg-success' : 'bg-secondary'}`}>
                           {cp.isCompleted ? '✓' : cpIdx + 1}
                         </span>
-                        <span className={cp.isCompleted ? 'text-dark' : 'text-muted'}>{cp.description}</span>
+                        <span className={cp.isCompleted ? 'text-dark' : 'text-muted'}>
+                          {cp.description}
+                          {cp.isCompleted && (
+                            <span className="text-muted small ms-2">
+                              ({new Date(cp.completedAt * 1000).toLocaleString()})
+                            </span>
+                          )}
+                        </span>
                       </div>
                       {index === activeMilestoneIndex && !cp.isCompleted && isCarrier && !cp.isRequested && (
                         <Button

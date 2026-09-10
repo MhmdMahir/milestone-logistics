@@ -17,10 +17,8 @@ interface IEscrow {
 
   function status() external view returns (EscrowStatus);
 
-  // Amount already sits in this escrow (moved there by the caller, e.g.
-  // AgreementFactory pulling from the shipper via transferFrom) - this just
-  // records/confirms it arrived.
-  function lockFund(uint256 amount) external;
+  // Native-ETH funding: the caller sends value directly with the call.
+  function lockFund() external payable;
 
   function releasePayment(uint256 amount) external;
 

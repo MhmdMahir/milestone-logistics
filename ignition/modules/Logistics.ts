@@ -1,9 +1,8 @@
 import { buildModule } from "@nomicfoundation/hardhat-ignition/modules";
 
 export default buildModule("LogisticsModule", (m) => {
-  const paymentToken = m.contract("PaymentToken");
   const userRegistry = m.contract("UserRegistry");
-  const agreementFactory = m.contract("AgreementFactory", [paymentToken]);
+  const agreementFactory = m.contract("AgreementFactory");
 
   const logisticsClient = m.contract("LogisticsClient", [userRegistry, agreementFactory]);
 
@@ -12,5 +11,5 @@ export default buildModule("LogisticsModule", (m) => {
   m.call(userRegistry, "setClient", [logisticsClient]);
   m.call(agreementFactory, "setClient", [logisticsClient]);
 
-  return { paymentToken, userRegistry, agreementFactory, logisticsClient };
+  return { userRegistry, agreementFactory, logisticsClient };
 });

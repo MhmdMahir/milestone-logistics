@@ -62,7 +62,12 @@ contract LogisticsContract is ILogisticsContract {
       string[] memory checkpointDescriptions = _milestones[i].checkpointDescriptions;
       for (uint256 j = 0; j < checkpointDescriptions.length; j++) {
         milestone.checkpoints.push(
-          MilestoneCheckpoint({description: checkpointDescriptions[j], isRequested: false, isCompleted: false})
+          MilestoneCheckpoint({
+            description: checkpointDescriptions[j],
+            isRequested: false,
+            isCompleted: false,
+            completedAt: 0
+          })
         );
       }
     }
@@ -115,10 +120,25 @@ contract LogisticsContract is ILogisticsContract {
     emit ContractActivated();
   }
 
-  function terminateContract(address caller) external onlyClient {
+  function terminateAgreement(address caller) public onlyClient {
     require(status == ContractStatus.Activated, "LogisticsContract: not activated");
     require(caller == shipper, "LogisticsContract: caller is not the shipper");
-    _terminate();
+
+    uint256 refundAmount = IEscrow(escrow).balance();
+    status = ContractStatus.Terminated;
+
+    transactions.push(
+      Transaction({
+        sender: escrow,
+        receiver: shipper,
+        amount: refundAmount,
+        txType: TransactionType.Refund,
+        timestamp: block.timestamp
+      })
+    );
+
+    IEscrow(escrow).refund();
+    emit ContractTerminated();
   }
 
   function requestCheckpoint(address caller, uint256 milestoneIndex, uint256 checkpointIndex) external onlyClient {
@@ -139,6 +159,7 @@ contract LogisticsContract is ILogisticsContract {
     require(!checkpoint.isCompleted, "LogisticsContract: checkpoint already completed");
 
     checkpoint.isCompleted = true;
+    checkpoint.completedAt = block.timestamp;
     emit CheckpointApproved(milestoneIndex, checkpointIndex);
 
     bool allCompleted = true;
@@ -154,17 +175,17 @@ contract LogisticsContract is ILogisticsContract {
     }
   }
 
-  function checkDeadlines() external {
+  function checkDeadlines(uint256 currentTime) external onlyClient {
     if (status != ContractStatus.Activated) {
       return;
     }
 
     for (uint256 i = 0; i < milestones.length; i++) {
       if (milestones[i].status == MilestoneStatus.InProgress) {
-        if (block.timestamp > milestones[i].deadline) {
+        if (currentTime > milestones[i].deadline) {
           milestones[i].status = MilestoneStatus.Failed;
           emit MilestoneStatusUpdated(i);
-          _terminate();
+          terminateAgreement(shipper);
         }
         return;
       }
@@ -204,23 +225,5 @@ contract LogisticsContract is ILogisticsContract {
       status = ContractStatus.Completed;
       emit ContractCompleted();
     }
-  }
-
-  function _terminate() private {
-    uint256 refundAmount = IEscrow(escrow).balance();
-    status = ContractStatus.Terminated;
-
-    transactions.push(
-      Transaction({
-        sender: escrow,
-        receiver: shipper,
-        amount: refundAmount,
-        txType: TransactionType.Refund,
-        timestamp: block.timestamp
-      })
-    );
-
-    IEscrow(escrow).refund();
-    emit ContractTerminated();
   }
 }

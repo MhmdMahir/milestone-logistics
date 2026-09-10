@@ -5,7 +5,7 @@ function Header() {
 
     const account = localStorage.getItem('account');
     const profileRaw = account && localStorage.getItem(`profile:${account}`);
-    const isCarrier = profileRaw && JSON.parse(profileRaw).role === 'Carrier';
+    const isShipper = profileRaw && JSON.parse(profileRaw).role === 'Shipper';
 
     const logOut = () => {
         localStorage.removeItem('account');
@@ -34,7 +34,7 @@ function Header() {
                             </li>
                         </ul>
                         <div className="btn-group" role="group" aria-label="Button group with nested dropdown">
-                            {isCarrier && (
+                            {isShipper && (
                                 <NavLink to="/create" className="btn btn-primary d-inline-flex align-items-center">
                                     Create
                                 </NavLink>
