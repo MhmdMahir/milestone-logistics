@@ -13,37 +13,27 @@ function isRegistered(account) {
   return account ? !!localStorage.getItem(`profile:${account}`) : false;
 }
 
-function isRegistered(account) {
-  return account ? !!localStorage.getItem(`profile:${account}`) : false;
-}
-
 function ProtectedRoute({ children }) {
   const account = localStorage.getItem('account');
+
   if (!account) {
     return <Navigate to="/" replace />;
   }
-  if (!isRegistered(account)) {
-    return <Navigate to="/register" replace />;
-  }
+
   return children;
 }
 
 function RegisterRoute({ children }) {
   const account = localStorage.getItem('account');
+
   if (!account) {
     return <Navigate to="/" replace />;
   }
-  if (isRegistered(account)) {
-    return <Navigate to="/main" replace />;
-  }
+
   return children;
 }
 
 function PublicRoute({ children }) {
-  const account = localStorage.getItem('account');
-  if (account) {
-    return <Navigate to={isRegistered(account) ? '/main' : '/register'} replace />;
-  }
   return children;
 }
 

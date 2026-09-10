@@ -7,7 +7,7 @@ import {UserProfile, UserRole} from "./interfaces/Types.sol";
 contract UserRegistry is IUserRegistry {
   mapping(address => UserProfile) private users;
   mapping(address => bool) private registered;
-
+  mapping(bytes32 => bool) private nameExists;
   address public client;
 
   modifier onlyClient() {
@@ -23,7 +23,11 @@ contract UserRegistry is IUserRegistry {
   function register(address caller, string calldata mail, string calldata name, UserRole role) external onlyClient {
     require(!registered[caller], "UserRegistry: already registered");
 
+    bytes32 nameHash = keccak256(bytes(name));
+    require(!nameExists[nameHash], "UserRegistry: name already exists");
+
     registered[caller] = true;
+    nameExists[nameHash] = true;
     users[caller] = UserProfile({walletAddress: caller, mail: mail, role: role, name: name});
 
     emit UserRegistered(caller, role);

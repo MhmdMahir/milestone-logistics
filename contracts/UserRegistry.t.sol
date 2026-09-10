@@ -76,4 +76,55 @@ contract UserRegistryTest is Test {
     vm.expectRevert("UserRegistry: client already set");
     registry.setClient(address(0xBAD));
   }
+
+function test_RegisteringDifferentNamesSucceeds() public {
+    vm.startPrank(client);
+
+    registry.register(
+        shipperWallet,
+        "alice@example.com",
+        "Alice",
+        UserRole.Shipper
+    );
+
+    registry.register(
+        carrierWallet,
+        "bob@example.com",
+        "Bob",
+        UserRole.Carrier
+    );
+
+    vm.stopPrank();
+
+    assertEq(registry.isRegistered(shipperWallet), true);
+    assertEq(registry.isRegistered(carrierWallet), true);
+
+    UserProfile memory alice = registry.getUser(shipperWallet);
+    UserProfile memory bob = registry.getUser(carrierWallet);
+
+    assertEq(alice.name, "Alice");
+    assertEq(bob.name, "Bob");
+}
+
+function test_RevertWhen_RegisteringDuplicateName() public {
+    vm.startPrank(client);
+
+    registry.register(
+        shipperWallet,
+        "shipper@example.com",
+        "Alice",
+        UserRole.Shipper
+    );
+
+    vm.expectRevert("UserRegistry: name already exists");
+
+    registry.register(
+        carrierWallet,
+        "carrier@example.com",
+        "Alice",
+        UserRole.Carrier
+    );
+
+    vm.stopPrank();
+}
 }

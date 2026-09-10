@@ -6,7 +6,7 @@ import {LogisticsClient} from "./LogisticsClient.sol";
 import {NativeAgreementFactory} from "./NativeAgreementFactory.sol";
 import {UserRegistry} from "./UserRegistry.sol";
 import {LogisticsContract} from "./LogisticsContract.sol";
-import {ContractStatus, MilestoneInput, MilestoneStatus, TransactionType, UserRole} from "./interfaces/Types.sol";
+import {ContractStatus, MilestoneInput, MilestoneStatus, TransactionType, UserProfile, UserRole} from "./interfaces/Types.sol";
 
 contract LogisticsClientTest is Test {
   UserRegistry registry;
@@ -16,6 +16,7 @@ contract LogisticsClientTest is Test {
   address shipper = address(0xA11CE);
   address carrier = address(0xB0B);
   address keeper = address(0xC0FFEE);
+  address user2 = address(0xB0B2);
   uint256 totalPayout = 1 ether;
 
   function setUp() public {
@@ -70,5 +71,55 @@ contract LogisticsClientTest is Test {
     assertEq(agreement.payoutRemaining(), totalPayout);
     assertEq(shipper.balance, shipperBefore + totalPayout);
     assertEq(uint256(agreement.getTransactions()[1].txType), uint256(TransactionType.Refund));
+  }
+
+  function test_RegisterThroughLogisticsClient() public {
+    vm.prank(shipper);
+
+    client.register("alice@example.com", "Alice", UserRole.Shipper);
+
+    UserProfile memory profile = registry.getUser(shipper);
+
+    assertEq(profile.walletAddress, shipper);
+    assertEq(profile.mail, "alice@example.com");
+    assertEq(profile.name, "Alice");
+    assertEq(uint256(profile.role), uint256(UserRole.Shipper));
+  }
+
+  function test_LoginThroughLogisticsClient() public {
+    vm.prank(shipper);
+
+    client.register("alice@example.com", "Alice", UserRole.Shipper);
+
+    vm.prank(shipper);
+
+    UserProfile memory profile = client.login();
+
+    assertEq(profile.walletAddress, shipper);
+    assertEq(profile.mail, "alice@example.com");
+    assertEq(profile.name, "Alice");
+    assertEq(uint256(profile.role), uint256(UserRole.Shipper));
+  }
+
+  function test_LoginThroughLogisticsClientRevertsWhenNotRegistered() public {
+    vm.prank(shipper);
+
+    vm.expectRevert("UserRegistry: not registered");
+
+    client.login();
+  }
+
+  function test_RegisterThroughLogisticsClientRejectsDuplicateName() public {
+    vm.startPrank(shipper);
+
+    client.register("alice@example.com", "Alice", UserRole.Shipper);
+
+    vm.stopPrank();
+
+    vm.prank(user2);
+
+    vm.expectRevert("UserRegistry: name already exists");
+
+    client.register("bob@example.com", "Alice", UserRole.Carrier);
   }
 }
