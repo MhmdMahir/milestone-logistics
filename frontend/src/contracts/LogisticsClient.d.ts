@@ -68,6 +68,7 @@ export interface LogisticsClient {
   register(mail: string, name: string, role: UserRole): Promise<void>;
   // Empty name (unregistered address) means "escrow", not a user - see impl.
   getUserName(address: string): Promise<string>;
+  getUserProfile(address: string): Promise<{ name: string; mail: string }>;
 
   // AGREEMENT
   createAgreement(

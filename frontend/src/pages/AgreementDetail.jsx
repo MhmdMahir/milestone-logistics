@@ -12,6 +12,8 @@ function AgreementDetail() {
   const navigate = useNavigate();
   const account = localStorage.getItem('account');
   const [agreement, setAgreement] = useState(null);
+  const [shipperProfile, setShipperProfile] = useState(null);
+  const [carrierProfile, setCarrierProfile] = useState(null);
   const [error, setError] = useState('');
 
   const load = useCallback(async () => {
@@ -28,6 +30,12 @@ function AgreementDetail() {
       }
 
       setAgreement(details);
+      const [shipper, carrier] = await Promise.all([
+        client.getUserProfile(details.shipper),
+        client.getUserProfile(details.carrier),
+      ]);
+      setShipperProfile(shipper);
+      setCarrierProfile(carrier);
     } catch (err) {
       setError(revertReason(err));
     }
@@ -93,10 +101,16 @@ function AgreementDetail() {
         <div className="row g-3">
           <div className="col-md-6">
             <span className="text-muted d-block small">Shipper</span>
+            {shipperProfile?.name && (
+              <span className="d-block">{shipperProfile.name} ({shipperProfile.mail})</span>
+            )}
             <span className="fw-semibold text-dark">{agreement.shipper}</span>
           </div>
           <div className="col-md-6">
             <span className="text-muted d-block small">Carrier</span>
+            {carrierProfile?.name && (
+              <span className="d-block">{carrierProfile.name} ({carrierProfile.mail})</span>
+            )}
             <span className="fw-semibold text-dark">{agreement.carrier}</span>
           </div>
           <div className="col-md-6">

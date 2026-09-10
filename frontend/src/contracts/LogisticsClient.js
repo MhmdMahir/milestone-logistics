@@ -143,6 +143,14 @@ export class LogisticsClient {
     return user.name || 'Escrow';
   }
 
+  // Shipper/carrier profile for the agreement detail page — empty name means
+  // "not a registered user" (e.g. the address was never used to register).
+  async getUserProfile(address) {
+    const registry = getContract('UserRegistry', CHAIN_ID, this.signer);
+    const user = await registry.getUser(address);
+    return { name: user.name || '', mail: user.mail || '' };
+  }
+
   async listTransactions(agreementAddress) {
     const txs = await this.contract.listTransactions(agreementAddress);
     return txs.map((t) => ({
