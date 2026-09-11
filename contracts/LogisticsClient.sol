@@ -15,23 +15,23 @@ contract LogisticsClient is ILogisticsClient {
   IUserRegistry public userRegistry;
   IAgreementFactory public agreementFactory;
 
-// Author: Chieng Yuan Jye
+
   constructor(address _userRegistry, address _agreementFactory) {
     require(_userRegistry != address(0), "LogisticsClient: registry is the zero address");
     require(_agreementFactory != address(0), "LogisticsClient: factory is the zero address");
     userRegistry = IUserRegistry(_userRegistry);
     agreementFactory = IAgreementFactory(_agreementFactory);
   }
-
+// Author: Chieng Yuan Jye
   function login() external view returns (UserProfile memory profile) {
     return userRegistry.login(msg.sender);
   }
 
-// Author: Kong Hui Xin
+
   function register(string calldata mail, string calldata name, UserRole role) external {
     userRegistry.register(msg.sender, mail, name, role);
   }
-
+// Author: Kong Hui Xin
   function createAgreement(
     address carrier,
     uint256 totalPayoutValue,
