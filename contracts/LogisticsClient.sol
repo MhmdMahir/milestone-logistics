@@ -7,12 +7,7 @@ import {IAgreementFactory} from "./interfaces/IAgreementFactory.sol";
 import {ILogisticsContract} from "./interfaces/ILogisticsContract.sol";
 import {ContractStatus, Milestone, MilestoneInput, Transaction, UserProfile, UserRole} from "./interfaces/Types.sol";
 
-// User-facing trusted facade. It forwards the original wallet address to the
-// underlying contracts because those contracts trust this facade as client.
-// Funds agreements with native ETH; the shipper sends msg.value ==
-// totalPayoutValue directly with the createAgreement call.
 contract LogisticsClient is ILogisticsClient {
-  //Bounds keep the LogisticsContract constructor's milestone loop inside the block gas limit. Without them an oversized agreement simply fails to deploy.
   uint256 private constant MAX_MILESTONES = 10;
   uint256 private constant MAX_CHECKPOINTS = 10;
   uint256 private constant MAX_DURATION = 90 days; //Agreement duration
@@ -20,6 +15,7 @@ contract LogisticsClient is ILogisticsClient {
   IUserRegistry public userRegistry;
   IAgreementFactory public agreementFactory;
 
+// Author: Chieng Yuan Jye
   constructor(address _userRegistry, address _agreementFactory) {
     require(_userRegistry != address(0), "LogisticsClient: registry is the zero address");
     require(_agreementFactory != address(0), "LogisticsClient: factory is the zero address");
@@ -31,6 +27,7 @@ contract LogisticsClient is ILogisticsClient {
     return userRegistry.login(msg.sender);
   }
 
+// Author: Kong Hui Xin
   function register(string calldata mail, string calldata name, UserRole role) external {
     userRegistry.register(msg.sender, mail, name, role);
   }
@@ -123,6 +120,7 @@ contract LogisticsClient is ILogisticsClient {
     }
   }
 
+// Author: Mohamed Mahir 
   function terminateAgreement(address agreement) external {
     ILogisticsContract(agreement).terminateAgreement(msg.sender);
   }
@@ -135,17 +133,12 @@ contract LogisticsClient is ILogisticsClient {
     ILogisticsContract(agreement).approveCheckpoint(msg.sender, milestoneIndex, checkpointIndex);
   }
 
-  // Keeper-style deadline check, routed through this trusted client like
-  // every other mutating call. The agreement owns failure detection,
-  // transaction recording, and the eventual refund (via its own
-  // terminateAgreement()). currentTime is caller-supplied so a course demo
-  // can simulate time passing instead of waiting on a real deadline —
-  // DEMO-ONLY, see ILogisticsContract.checkDeadlines for why this must
-  // never ship for real.
+// Author: Jonathan Ho Yoon Choon
   function checkDeadlines(address agreement, uint256 currentTime) external {
     ILogisticsContract(agreement).checkDeadlines(currentTime);
   }
 
+// Author: Tan Zhen Yu
   function listTransactions(address agreement) external view returns (Transaction[] memory) {
     return ILogisticsContract(agreement).getTransactions();
   }
