@@ -1,71 +1,46 @@
 import { ethers } from 'ethers';
 import { LogisticsClient } from './LogisticsClient.js';
 
-export const CHAIN_ID = 11155111; // sepolia
+import logisticsClientArtifact from './abis/LogisticsClient.json';
+import userRegistryArtifact from './abis/UserRegistry.json';
 
-// Every compiled contract artifact Hardhat produces, and every network's
-// deployed-address map Ignition writes. New .sol files and new deployments
-// are picked up automatically — nothing to hand-wire here.
-const artifactModules = import.meta.glob(
-  '../../../artifacts/contracts/**/*.json',
-  { eager: true }
-);
-const deploymentModules = import.meta.glob(
-  '../../../ignition/deployments/*/deployed_addresses.json',
-  { eager: true }
-);
+// Sepolia
+export const CHAIN_ID = 11155111;
 
-function unwrap(mod) {
-  return mod?.default ?? mod;
-}
+// Contracts deployed on Sepolia
+const DEPLOYMENTS = {
+  11155111: {
+    AgreementFactory: '0x5b31b25E9B1272FbCff5F03F486A782aAb2bB158',
+    UserRegistry: '0x737993Ea2A28793eDf53C3E560a7bA506205C729',
+    LogisticsClient: '0xaDce240eFAD3334144B3141D9fC9925C47e635Ee',
+  },
+};
 
-function findArtifact(contractName) {
-  const path = Object.keys(artifactModules).find(
-    (p) => p.endsWith(`/${contractName}.json`)
-  );
+const ARTIFACTS = {
+  LogisticsClient: logisticsClientArtifact,
+  UserRegistry: userRegistryArtifact,
+};
 
-  if (!path) {
-    throw new Error(
-      `No compiled artifact for "${contractName}". Run "npx hardhat build" first.`
-    );
+export function getContract(contractName, chainId, signerOrProvider) {
+  const artifact = ARTIFACTS[contractName];
+
+  if (!artifact) {
+    throw new Error(`No ABI found for "${contractName}".`);
   }
 
-  return unwrap(artifactModules[path]);
-}
+  const deployment = DEPLOYMENTS[chainId];
 
-function findAddress(contractName, chainId) {
-  const path = Object.keys(deploymentModules).find(
-    (p) => p.includes(`/chain-${chainId}/`)
-  );
-
-  if (!path) {
-    throw new Error(
-      `No Ignition deployment found for chain ${chainId}.`
-    );
+  if (!deployment) {
+    throw new Error(`No deployment found for chain ${chainId}.`);
   }
 
-  const addresses = unwrap(deploymentModules[path]);
+  const address = deployment[contractName];
 
-  const key = Object.keys(addresses).find(
-    (k) => k.endsWith(`#${contractName}`)
-  );
-
-  if (!key) {
+  if (!address) {
     throw new Error(
-      `"${contractName}" hasn't been deployed on chain ${chainId} yet.`
+      `"${contractName}" has not been deployed on chain ${chainId}.`
     );
   }
-
-  return addresses[key];
-}
-
-export function getContract(
-  contractName,
-  chainId,
-  signerOrProvider
-) {
-  const artifact = findArtifact(contractName);
-  const address = findAddress(contractName, chainId);
 
   return new ethers.Contract(
     address,
@@ -74,10 +49,16 @@ export function getContract(
   );
 }
 
-// The only way pages should touch contract-shaped data.
 export async function getLogisticsClient() {
+  if (!window.ethereum) {
+    throw new Error('MetaMask is not installed.');
+  }
+
   const provider = new ethers.BrowserProvider(window.ethereum);
+
   await provider.send('eth_requestAccounts', []);
+
   const signer = await provider.getSigner();
+
   return new LogisticsClient(signer);
 }
