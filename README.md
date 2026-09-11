@@ -165,6 +165,19 @@ milestone-logistics/
 ├── package.json            # Root project dependencies and scripts
 └── README.md               # Project overview and specification
 ```
+## Deployment
+```Metamask
+Network Name:      			Sepolia
+Default RPC URL:            sepolia.infura.io
+Chain ID:           		11155111
+Currency Symbol:    		SepoliaETH
+Block Explorer:     		sepolia.etherscan.io
+```
+
+- Why **11155111** as the chain ID?<br>
+  Sepolia official chain ID
+
+[Milestone Logistic WebApp](milestone-logistics-one.vercel.app)
 
 ## Limitations and Challenges
 
