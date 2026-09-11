@@ -166,7 +166,8 @@ milestone-logistics/
 └── README.md               # Project overview and specification
 ```
 ## Deployment
-```Metamask
+### Test Net Configuration
+``` Metamask
 Network Name:      			Sepolia
 Default RPC URL:            sepolia.infura.io
 Chain ID:           		11155111
