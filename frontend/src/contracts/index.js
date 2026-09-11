@@ -1,7 +1,7 @@
 import { ethers } from 'ethers';
 import { LogisticsClient } from './LogisticsClient.js';
 
-export const CHAIN_ID = 1337; // Ganache
+export const CHAIN_ID = 11155111; // sepolia
 
 // Every compiled contract artifact Hardhat produces, and every network's
 // deployed-address map Ignition writes. New .sol files and new deployments

@@ -1,0 +1,56 @@
+{
+  "_format": "hh3-sol-build-info-1",
+  "id": "solc-0_8_34-7c9bbc7ae0d729d196b23261c2058a7e12735fa9",
+  "solcVersion": "0.8.34",
+  "solcLongVersion": "0.8.34+commit.80d5c536",
+  "compilerType": "solc",
+  "toolVersions": {
+    "hardhat": "3.15.0"
+  },
+  "userSourceNameMap": {
+    "contracts/UserRegistry.sol": "project/contracts/UserRegistry.sol"
+  },
+  "input": {
+    "language": "Solidity",
+    "settings": {
+      "evmVersion": "london",
+      "optimizer": {
+        "enabled": true,
+        "runs": 200
+      },
+      "outputSelection": {
+        "*": {
+          "": [
+            "ast"
+          ],
+          "*": [
+            "abi",
+            "evm.bytecode.linkReferences",
+            "evm.bytecode.object",
+            "evm.bytecode.opcodes",
+            "evm.bytecode.sourceMap",
+            "evm.deployedBytecode.immutableReferences",
+            "evm.deployedBytecode.linkReferences",
+            "evm.deployedBytecode.object",
+            "evm.deployedBytecode.opcodes",
+            "evm.deployedBytecode.sourceMap",
+            "evm.methodIdentifiers"
+          ]
+        }
+      },
+      "remappings": [],
+      "viaIR": true
+    },
+    "sources": {
+      "project/contracts/interfaces/IUserRegistry.sol": {
+        "content": "// SPDX-License-Identifier: UNLICENSED\r\npragma solidity ^0.8.34;\r\n\r\nimport {UserProfile, UserRole} from \"./Types.sol\";\r\n\r\ninterface IUserRegistry {\r\n  event UserRegistered(address indexed wallet, UserRole role);\r\n\r\n  // One-time wiring: only callable while unset, so the deployer can point\r\n  // this registry at the LogisticsClient it will trust as its caller-forwarder.\r\n  function setClient(address _client) external;\r\n\r\n  function client() external view returns (address);\r\n\r\n  // `caller` is the real end user, forwarded by the trusted LogisticsClient -\r\n  // msg.sender here is always the client contract, never the user directly.\r\n  function register(address caller, string calldata mail, string calldata name, UserRole role) external;\r\n\r\n  function isRegistered(address wallet) external view returns (bool);\r\n\r\n  function login(address caller) external view returns (UserProfile memory);\r\n\r\n  function getUser(address wallet) external view returns (UserProfile memory);\r\n}\r\n"
+      },
+      "project/contracts/interfaces/Types.sol": {
+        "content": "// SPDX-License-Identifier: UNLICENSED\r\npragma solidity ^0.8.34;\r\n\r\nenum ContractStatus {\r\n  Pending,\r\n  Activated,\r\n  Terminated,\r\n  Completed\r\n}\r\n\r\nenum MilestoneStatus {\r\n  Pending,\r\n  InProgress,\r\n  Completed,\r\n  Failed\r\n}\r\n\r\nenum EscrowStatus {\r\n  Locked,\r\n  Released,\r\n  Refunded\r\n}\r\n\r\nenum UserRole {\r\n  Shipper,\r\n  Carrier\r\n}\r\n\r\nenum TransactionType {\r\n  AgreementCreation,\r\n  Payoff,\r\n  Refund\r\n}\r\n\r\nstruct UserProfile {\r\n  address walletAddress;\r\n  string mail;\r\n  UserRole role;\r\n  string name;\r\n}\r\n\r\nstruct MilestoneCheckpoint {\r\n  string description;\r\n  bool isRequested;\r\n  bool isCompleted;\r\n  uint256 completedAt;\r\n}\r\n\r\nstruct Milestone {\r\n  uint256 deadline;\r\n  uint256 payoutPercent;\r\n  string title;\r\n  MilestoneStatus status;\r\n  MilestoneCheckpoint[] checkpoints;\r\n}\r\n\r\n// Creation-time input shape. Kept separate from `Milestone` because status\r\n// and checkpoint completion state don't exist yet when an agreement is created.\r\nstruct MilestoneInput {\r\n  uint256 deadline;\r\n  uint256 payoutPercent;\r\n  string title;\r\n  string[] checkpointDescriptions;\r\n}\r\n\r\nstruct Transaction {\r\n  address sender;\r\n  address receiver;\r\n  uint256 amount;\r\n  TransactionType txType;\r\n  uint256 timestamp;\r\n}\r\n"
+      },
+      "project/contracts/UserRegistry.sol": {
+        "content": "// SPDX-License-Identifier: UNLICENSED\r\npragma solidity ^0.8.34;\r\n\r\nimport {IUserRegistry} from \"./interfaces/IUserRegistry.sol\";\r\nimport {UserProfile, UserRole} from \"./interfaces/Types.sol\";\r\n\r\ncontract UserRegistry is IUserRegistry {\r\n  mapping(address => UserProfile) private users;\r\n  mapping(address => bool) private registered;\r\n  mapping(bytes32 => bool) private nameExists;\r\n  address public client;\r\n\r\n  modifier onlyClient() {\r\n    require(msg.sender == client, \"UserRegistry: caller is not the client\");\r\n    _;\r\n  }\r\n\r\n  function setClient(address _client) external {\r\n    require(client == address(0), \"UserRegistry: client already set\");\r\n    client = _client;\r\n  }\r\n\r\n  function register(address caller, string calldata mail, string calldata name, UserRole role) external onlyClient {\r\n    require(!registered[caller], \"UserRegistry: already registered\");\r\n\r\n    bytes32 nameHash = keccak256(bytes(name));\r\n    require(!nameExists[nameHash], \"UserRegistry: name already exists\");\r\n\r\n    registered[caller] = true;\r\n    nameExists[nameHash] = true;\r\n    users[caller] = UserProfile({walletAddress: caller, mail: mail, role: role, name: name});\r\n\r\n    emit UserRegistered(caller, role);\r\n  }\r\n\r\n  function isRegistered(address wallet) external view returns (bool) {\r\n    return registered[wallet];\r\n  }\r\n\r\n  function login(address caller) external view onlyClient returns (UserProfile memory) {\r\n    require(registered[caller], \"UserRegistry: not registered\");\r\n    return users[caller];\r\n  }\r\n\r\n  function getUser(address wallet) external view returns (UserProfile memory) {\r\n    return users[wallet];\r\n  }\r\n}\r\n"
+      }
+    }
+  }
+}
