@@ -178,7 +178,7 @@ Block Explorer:     		sepolia.etherscan.io
 - Why **11155111** as the chain ID?<br>
   Sepolia official chain ID
 
-[Milestone Logistic WebApp](milestone-logistics-one.vercel.app)
+[Milestone Logistic WebApp](https://milestone-logistics-one.vercel.app/)
 
 ## Limitations and Challenges
 
