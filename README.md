@@ -4,7 +4,7 @@
 
 A blockchain-based logistics application for managing agreements between shippers and carriers. Native ETH is deposited into a contract-controlled escrow and released progressively as milestone checkpoints are completed.
 
-> **Project status:** Functional local Ganache prototype
+> **Project status:** Functional local and deployed Ganache prototype
 
 ## Specs Introduction: Escrow
 
@@ -40,15 +40,26 @@ Each agreement is represented by a `LogisticsContract` and a paired `Escrow` con
 - A user can register only once, and each display name must be unique.
 - Only registered shippers can create agreements; the selected counterparty must be a registered carrier.
 - A shipper cannot select the same wallet as both shipper and carrier.
+- The shipper and carrier must negotiate and mutually agree on the escrow terms before the agreement is created.
+- An agreement must specify the shipper, carrier, total escrow amount, duration, milestones, checkpoints, and milestone payout percentages.
 - Agreement duration must be greater than zero and no longer than 90 days.
 - Every agreement must contain at least one milestone and no more than 10 milestones.
 - Milestone deadlines must be ascending, within the agreement duration, and in the future at creation time.
 - Each milestone must contain at least one and no more than 10 checkpoints.
 - Payout percentages must be positive and total exactly 100 percent.
 - The ETH sent with agreement creation must equal the declared total payout value.
+- An agreement remains pending until the full escrow amount has been deposited by the shipper.
+- An agreement becomes active once fully funded, and the first milestone automatically becomes In Progress.
+- Only one milestone can be In Progress at a time; the next milestone starts automatically after the current milestone is completed.
+- A milestone is completed only after all of its checkpoints have been approved.
 - Only the carrier can request a checkpoint, and only the shipper can approve a requested checkpoint.
+- A milestone must be completed before its deadline. Failure to complete any milestone by its deadline terminates the entire agreement.
+- Upon successful milestone completion, the allocated escrow payment is released to the carrier according to its payout percentage.
+- An agreement is completed only after all milestones have been completed and their payments released.
+- If an agreement is terminated, all unreleased escrow funds are refunded to the shipper. Previously released payments are not refunded.
 - Only the paired agreement contract can release escrow payments or issue refunds.
-- The caller-supplied time used by `checkDeadlines` is for local demonstration only. A production deployment must use a trusted time source rather than allowing users to provide the current time.
+- The smart contract automatically handles milestone payments, termination, and refunds without requiring third-party intervention.
+- The caller-supplied time used by checkDeadlines is for local demonstration only. A production deployment must use a trusted time source rather than allowing users to provide the current time.
 
 ## Component Diagram
 
@@ -201,6 +212,4 @@ Block Explorer:     		sepolia.etherscan.io
 - [x] Connect the frontend to MetaMask and `LogisticsClient.sol`
 - [x] Build agreement, milestone, checkpoint, and transaction views
 - [x] Add Solidity and integration tests
-- [ ] Add production-grade deadline automation
-- [ ] Complete security review and contract audit
-- [ ] Deploy and test on a shared public network
+- [x] Deploy and test on a shared public network
