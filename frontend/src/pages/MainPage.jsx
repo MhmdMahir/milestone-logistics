@@ -49,6 +49,9 @@ function matchesSearch(agreement, query) {
 
 function MainPage() {
     const location = useLocation();
+    const account = localStorage.getItem('account');
+    const profileRaw = account && localStorage.getItem(`profile:${account}`);
+    const isShipper = profileRaw && JSON.parse(profileRaw).role === 'Shipper';
     const [name, setName] = useState('');
     const [agreements, setAgreements] = useState([]);
     const [showCreatedToast, setShowCreatedToast] = useState(Boolean(location.state?.created));
@@ -134,10 +137,14 @@ function MainPage() {
                     <summary className="h4 fw-bold text-dark border-bottom pb-2 mb-3" style={{ cursor: 'pointer' }}>
                         Archive
                     </summary>
-                    <CardList agreements={agreements.filter((a) => a.status === 'Completed' || a.status === 'Terminated')} />
+                    <CardList
+                        agreements={agreements
+                            .filter((a) => a.status === 'Completed' || a.status === 'Terminated')
+                            .filter((a) => matchesSearch(a, search))}
+                    />
                 </details>
             )}
-            <FloatAction />
+            {isShipper && <FloatAction />}
             <FixedFooter />
         </div>
     );

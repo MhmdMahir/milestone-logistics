@@ -120,11 +120,9 @@ contract LogisticsClient is ILogisticsClient {
     }
   }
 
-// Author: Mohamed Mahir 
-  function terminateAgreement(address agreement) external {
-    ILogisticsContract(agreement).terminateAgreement(msg.sender);
-  }
 
+
+// Author: Mohamed Mahir 
   function requestCheckpoint(address agreement, uint256 milestoneIndex, uint256 checkpointIndex) external {
     ILogisticsContract(agreement).requestCheckpoint(msg.sender, milestoneIndex, checkpointIndex);
   }
@@ -136,6 +134,10 @@ contract LogisticsClient is ILogisticsClient {
 // Author: Jonathan Ho Yoon Choon
   function checkDeadlines(address agreement, uint256 currentTime) external {
     ILogisticsContract(agreement).checkDeadlines(currentTime);
+  }
+  
+  function terminateAgreement(address agreement) external {
+    ILogisticsContract(agreement).terminateAgreement(msg.sender);
   }
 
 // Author: Tan Zhen Yu

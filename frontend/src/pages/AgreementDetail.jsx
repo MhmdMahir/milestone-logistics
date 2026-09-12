@@ -77,6 +77,7 @@ function AgreementDetail() {
   const isCarrier = account === agreement.carrier;
   const isShipper = account === agreement.shipper;
   const activeMilestoneIndex = agreement.milestones.findIndex((m) => m.status === 'InProgress');
+  const failedMilestone = agreement.milestones.find((m) => m.status === 'Failed');
 
   return (
     <div className="container pt-5 mt-4 pb-5 text-start" style={{ maxWidth: '840px' }}>
@@ -94,6 +95,13 @@ function AgreementDetail() {
           </Badge>
         </div>
       </div>
+
+      {agreement.status === 'Terminated' && (
+        <div className="alert alert-danger small mb-4">
+          <strong>Terminated:</strong> the checkpoint milestone
+          {failedMilestone ? ` "${failedMilestone.title}"` : ''} did not complete before its deadline, so the agreement was cancelled and remaining funds refunded to the shipper.
+        </div>
+      )}
 
       {/* Overview */}
       <section className="mb-5">
@@ -190,7 +198,7 @@ function AgreementDetail() {
                         </span>
                         <span className={cp.isCompleted ? 'text-dark' : 'text-muted'}>
                           {cp.description}
-                          {cp.isCompleted && (
+                          {cp.isCompleted && cp.completedAt > 0 && (
                             <span className="text-muted small ms-2">
                               ({new Date(cp.completedAt * 1000).toLocaleString()})
                             </span>

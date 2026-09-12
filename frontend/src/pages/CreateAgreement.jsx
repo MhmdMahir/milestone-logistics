@@ -7,6 +7,10 @@ import FixedFooter from '../components/FixedFooter';
 import { getLogisticsClient } from '../contracts';
 import { revertReason } from '../contracts/LogisticsClient';
 
+// Demo-only fixed rate — no live FX feed wired up, this is just so the
+// shipper can sanity-check the ETH amount in a currency they think in.
+const ETH_TO_MYR = 17000;
+
 function MultiThumbSplitter({ milestones, setMilestones, totalPayout }) {
     const containerRef = useRef(null);
 
@@ -162,9 +166,10 @@ function CreateAgreement() {
     const totalPayout = Number(totalEscrowAmount) || 0;
     const totalPercentage = milestones.reduce((sum, m) => sum + (Number(m.payoutPercentage) || 0), 0);
 
-    // Validate last milestone deadline
+    // Validate deadlines — every milestone must fall within the 90-day window,
+    // since the contract derives overall duration from the last one.
     const lastMilestone = milestones[milestones.length - 1];
-    const lastDeadlineInvalid = lastMilestone?.deadline && lastMilestone.deadline > maxAllowedDateStr;
+    const lastDeadlineInvalid = milestones.some((m) => m.deadline && m.deadline > maxAllowedDateStr);
 
     // Milestone Handlers
     const addMilestone = () => {
@@ -359,6 +364,9 @@ function CreateAgreement() {
                                     onChange={(e) => setTotalEscrowAmount(e.target.value)}
                                     required
                                 />
+                                <Form.Text className="text-muted">
+                                    ≈ RM {(Number(totalEscrowAmount || 0) * ETH_TO_MYR).toLocaleString('en-MY', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                </Form.Text>
                             </Form.Group>
                         </div>
                     </div>
@@ -413,7 +421,7 @@ function CreateAgreement() {
                                                 <Form.Control
                                                     type="date"
                                                     min={nowStr}
-                                                    max={index === milestones.length - 1 ? maxAllowedDateStr : undefined}
+                                                    max={maxAllowedDateStr}
                                                     value={m.deadline}
                                                     onChange={(e) => updateMilestone(m.id, 'deadline', e.target.value)}
                                                     required
@@ -495,7 +503,7 @@ function CreateAgreement() {
                         {/* Deadline rule warning */}
                         {lastDeadlineInvalid && (
                             <div className="alert alert-danger small p-2 mb-3">
-                                ⚠️ The last milestone deadline cannot exceed 90 days from the current date ({maxAllowedDateStr}).
+                                ⚠️ Milestone deadlines cannot exceed 90 days from the current date ({maxAllowedDateStr}).
                             </div>
                         )}
 

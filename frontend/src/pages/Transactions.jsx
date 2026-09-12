@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { ethers } from 'ethers';
-import { Form } from 'react-bootstrap';
+import { Dropdown, Form } from 'react-bootstrap';
 import Header from '../components/Header';
 import FixedFooter from '../components/FixedFooter';
 import { getLogisticsClient } from '../contracts';
@@ -65,12 +65,17 @@ function Transactions() {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
-          <Form.Select style={{ maxWidth: '200px' }} value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)}>
-            <option value="All">All types</option>
-            <option value="AgreementCreation">AgreementCreation</option>
-            <option value="Payoff">Payoff</option>
-            <option value="Refund">Refund</option>
-          </Form.Select>
+          <Dropdown onSelect={(key) => setTypeFilter(key)}>
+            <Dropdown.Toggle variant="outline-secondary" style={{ minWidth: '200px' }} className="text-start">
+              {typeFilter === 'All' ? 'All types' : typeFilter}
+            </Dropdown.Toggle>
+            <Dropdown.Menu style={{ minWidth: '200px' }}>
+              <Dropdown.Item eventKey="All" active={typeFilter === 'All'}>All types</Dropdown.Item>
+              <Dropdown.Item eventKey="AgreementCreation" active={typeFilter === 'AgreementCreation'}>AgreementCreation</Dropdown.Item>
+              <Dropdown.Item eventKey="Payoff" active={typeFilter === 'Payoff'}>Payoff</Dropdown.Item>
+              <Dropdown.Item eventKey="Refund" active={typeFilter === 'Refund'}>Refund</Dropdown.Item>
+            </Dropdown.Menu>
+          </Dropdown>
         </div>
       )}
 

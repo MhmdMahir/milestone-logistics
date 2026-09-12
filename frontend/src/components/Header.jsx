@@ -36,7 +36,7 @@ function Header() {
                         <div className="btn-group" role="group" aria-label="Button group with nested dropdown">
                             {isShipper && (
                                 <NavLink to="/create" className="btn btn-primary d-inline-flex align-items-center">
-                                    Create
+                                    Create Agreement
                                 </NavLink>
                             )}
                             <div className="btn-group" role="group">
